@@ -92,7 +92,9 @@ wss.on("connection", (ws) => {
 
 });
 
-server.listen(3000, "0.0.0.0", ()=>{
+const PORT = process.env.PORT || 3000;
+
+    server.listen(PORT, "0.0.0.0", ()=>{
 
     console.log("Server Running");
 
