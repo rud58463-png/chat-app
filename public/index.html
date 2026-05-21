@@ -126,11 +126,8 @@ button{
 
 <script>
 
-const protocol =
-location.protocol === "https:" ? "wss://" : "ws://";
-
 const ws =
-new WebSocket(protocol + location.host);
+new WebSocket("wss://chat-app-9uzk.onrender.com");
 
 const chat =
 document.getElementById("chat");
@@ -223,7 +220,8 @@ function joinChat(){
     if(username.trim() === "") return;
 
     if(ws.readyState !== WebSocket.OPEN){
-        alert("กำลังเชื่อมต่อ... รอสักครู่แล้วลองใหม่");
+        document.getElementById("myName").innerHTML =
+        "⚠️ กำลังเชื่อมต่อ... รอสักครู่แล้วลองใหม่";
         return;
     }
 
