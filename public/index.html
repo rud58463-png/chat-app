@@ -126,8 +126,6 @@ button{
 
 <script>
 
-window.onload = function(){
-
 const chat =
 document.getElementById("chat");
 
@@ -184,7 +182,7 @@ function connect(){
             "chatName"
         );
 
-        // ถ้า MIT App ส่งชื่อมา
+        // ถ้าเปิดจาก MIT App
         if(
             appName &&
             appName.trim() !== ""
@@ -208,7 +206,13 @@ function connect(){
             usernameInput.value =
             savedName;
 
-            join(savedName);
+            // delay ให้ MIT WebViewer พร้อม
+            setTimeout(function(){
+
+                join(savedName);
+
+            },500);
+
         }
 
     };
@@ -330,19 +334,17 @@ function join(username){
 }
 
 // join button
-window.joinChat =
-function(){
+function joinChat(){
 
     const username =
     usernameInput.value;
 
     join(username);
 
-};
+}
 
 // send message
-window.sendMsg =
-function(){
+function sendMsg(){
 
     if(!joined)
     return;
@@ -371,34 +373,27 @@ function(){
     msgInput.value =
     "";
 
-};
+}
 
 // enter send
-if(msgInput){
+msgInput.addEventListener(
+    "keypress",
+    function(e){
 
-    msgInput
-    .addEventListener(
-        "keypress",
-        function(e){
+        if(
+            e.key ===
+            "Enter"
+        ){
 
-            if(
-                e.key ===
-                "Enter"
-            ){
-
-                sendMsg();
-
-            }
+            sendMsg();
 
         }
-    );
 
-}
+    }
+);
 
 // start
 connect();
-
-};
 
 </script>
 
