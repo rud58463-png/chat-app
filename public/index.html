@@ -1,4 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Chat Room</title>
+
+<style>
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:#111;
+    color:white;
+    font-family:sans-serif;
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+}
+
+header{
+    background:#1b1b1b;
+    padding:15px;
+    border-bottom:1px solid #333;
+}
+
+h2{
+    margin:0;
+}
+
+#online,
+#myName{
+    margin-top:8px;
+    font-size:16px;
+}
+
+#joinBox{
+    padding:15px;
+    display:flex;
+    gap:10px;
+}
+
+#joinBox input{
+    flex:1;
+}
+
+#chat{
+    flex:1;
+    overflow-y:auto;
+    padding:12px;
+    background:#181818;
+}
+
+.msg{
+    background:#222;
+    margin-bottom:8px;
+    padding:10px;
+    border-radius:10px;
+    word-break:break-word;
+}
+
+#bottomBar{
+    display:flex;
+    gap:10px;
+    padding:12px;
+    border-top:1px solid #333;
+    background:#1b1b1b;
+}
+
+input{
+    border:none;
+    outline:none;
+    border-radius:12px;
+    padding:14px;
+    font-size:16px;
+}
+
+button{
+    border:none;
+    border-radius:12px;
+    padding:14px 20px;
+    font-size:16px;
+    cursor:pointer;
+}
+
+#msg{
+    flex:1;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+
+<h2>💬 ห้องแชทรวม</h2>
+
+<div id="online">
+👥 ออนไลน์: 0 คน
+</div>
+
+<div id="myName">
+👤 ชื่อของคุณ: ยังไม่ได้ Join
+</div>
+
+</header>
+
+<div id="joinBox">
+<input id="username" placeholder="ตั้งชื่อ">
+<button onclick="joinChat()">Join</button>
+</div>
+
+<div id="chat"></div>
+
+<div id="bottomBar">
+<input id="msg" placeholder="พิมพ์ข้อความ">
+<button onclick="sendMsg()">ส่ง</button>
+</div>
+
 <script>
+
+window.onload = function(){
 
 const chat =
 document.getElementById("chat");
@@ -19,7 +147,9 @@ const msgInput =
 document.getElementById("msg");
 
 const params =
-new URLSearchParams(window.location.search);
+new URLSearchParams(
+window.location.search
+);
 
 const appName =
 params.get("name");
@@ -37,12 +167,15 @@ function connect(){
 
     ws =
     new WebSocket(
-        protocol + location.host
+        protocol +
+        location.host
     );
 
-    ws.onopen = ()=>{
+    ws.onopen = function(){
 
-        console.log("connected");
+        console.log(
+            "connected"
+        );
 
         joined = false;
 
@@ -80,30 +213,49 @@ function connect(){
 
     };
 
-    ws.onmessage = (event)=>{
+    ws.onmessage =
+    function(event){
 
         const data =
-        JSON.parse(event.data);
+        JSON.parse(
+            event.data
+        );
 
-        if(data.type==="clear"){
+        if(
+            data.type ===
+            "clear"
+        ){
 
-            chat.innerHTML = "";
+            chat.innerHTML =
+            "";
 
         }
 
-        if(data.type==="online"){
+        if(
+            data.type ===
+            "online"
+        ){
 
             online.innerHTML =
             "👥 ออนไลน์: "
-            + data.count +
+            +
+            data.count
+            +
             " คน";
 
         }
 
-        if(data.type==="message"){
+        if(
+            data.type ===
+            "message"
+        ){
 
             chat.innerHTML +=
-            `<div class="msg">${data.text}</div>`;
+            '<div class="msg">'
+            +
+            data.text
+            +
+            '</div>';
 
             chat.scrollTop =
             chat.scrollHeight;
@@ -112,7 +264,8 @@ function connect(){
 
     };
 
-    ws.onclose = ()=>{
+    ws.onclose =
+    function(){
 
         joined = false;
 
@@ -128,7 +281,7 @@ function connect(){
 
 }
 
-// join ห้อง
+// join room
 function join(username){
 
     if(
@@ -139,13 +292,13 @@ function join(username){
         return;
     }
 
+    if(joined)
+    return;
+
     username =
     username.trim();
 
     if(username === "")
-    return;
-
-    if(joined)
     return;
 
     // save name
@@ -159,30 +312,37 @@ function join(username){
 
     myName.innerHTML =
     "👤 ชื่อของคุณ: "
-    + username;
+    +
+    username;
 
-    ws.send(JSON.stringify({
-        type:"join",
-        username:username
-    }));
+    ws.send(
+        JSON.stringify({
+            type:"join",
+            username:username
+        })
+    );
 
     joinBox.style.display =
     "none";
 
     joined = true;
+
 }
 
-// ปุ่ม join
-function joinChat(){
+// join button
+window.joinChat =
+function(){
 
     const username =
     usernameInput.value;
 
     join(username);
-}
 
-// ส่งข้อความ
-function sendMsg(){
+};
+
+// send message
+window.sendMsg =
+function(){
 
     if(!joined)
     return;
@@ -191,7 +351,9 @@ function sendMsg(){
         !ws ||
         ws.readyState !==
         WebSocket.OPEN
-    ) return;
+    ){
+        return;
+    }
 
     const text =
     msgInput.value.trim();
@@ -199,29 +361,46 @@ function sendMsg(){
     if(text === "")
     return;
 
-    ws.send(JSON.stringify({
-        type:"chat",
-        text:text
-    }));
+    ws.send(
+        JSON.stringify({
+            type:"chat",
+            text:text
+        })
+    );
 
-    msgInput.value = "";
-}
+    msgInput.value =
+    "";
+
+};
 
 // enter send
-msgInput.addEventListener(
-    "keypress",
-    (e)=>{
+if(msgInput){
 
-        if(e.key==="Enter"){
+    msgInput
+    .addEventListener(
+        "keypress",
+        function(e){
 
-            sendMsg();
+            if(
+                e.key ===
+                "Enter"
+            ){
+
+                sendMsg();
+
+            }
 
         }
+    );
 
-    }
-);
+}
 
 // start
 connect();
 
+};
+
 </script>
+
+</body>
+</html>
