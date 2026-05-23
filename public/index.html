@@ -1,99 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Chat Room</title>
+
+<style>
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:#111;
+    color:white;
+    font-family:sans-serif;
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+}
+
+header{
+    background:#1b1b1b;
+    padding:15px;
+    border-bottom:1px solid #333;
+}
+
+h2{
+    margin:0;
+}
+
+#online,
+#myName{
+    margin-top:8px;
+    font-size:16px;
+}
+
+#joinBox{
+    padding:15px;
+    display:flex;
+    gap:10px;
+}
+
+#joinBox input{
+    flex:1;
+}
+
+#chat{
+    flex:1;
+    overflow-y:auto;
+    padding:12px;
+    background:#181818;
+}
+
+.msg{
+    background:#222;
+    margin-bottom:8px;
+    padding:10px;
+    border-radius:10px;
+    word-break:break-word;
+}
+
+#bottomBar{
+    display:flex;
+    gap:10px;
+    padding:12px;
+    border-top:1px solid #333;
+    background:#1b1b1b;
+}
+
+input{
+    border:none;
+    outline:none;
+    border-radius:12px;
+    padding:14px;
+    font-size:16px;
+}
+
+button{
+    border:none;
+    border-radius:12px;
+    padding:14px 20px;
+    font-size:16px;
+    cursor:pointer;
+}
+
+#msg{
+    flex:1;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+
+<h2>💬 ห้องแชทรวม</h2>
+
+<div id="online">
+👥 ออนไลน์: 0 คน
+</div>
+
+<div id="myName">
+👤 ชื่อของคุณ: ยังไม่ได้ Join
+</div>
+
+</header>
+
+<div id="joinBox">
+<input id="username" placeholder="ตั้งชื่อ">
+<button onclick="joinChat()">Join</button>
+</div>
+
+<div id="chat"></div>
+
+<div id="bottomBar">
+<input id="msg" placeholder="พิมพ์ข้อความ">
+<button onclick="sendMsg()">ส่ง</button>
+</div>
+
 <script>
 
-const chat = document.getElementById("chat");
+const chat =
+document.getElementById("chat");
 
 const params =
-new URLSearchParams(window.location.search);
+new URLSearchParams(
+window.location.search
+);
 
 const appName =
 params.get("name");
 
 let joined = false;
+let ws = null;
 
-const protocol =
-location.protocol === "https:"
-? "wss://"
-: "ws://";
+// เชื่อมต่อ websocket
+function connect(){
 
-const ws =
-new WebSocket(protocol + location.host);
+    const protocol =
+    location.protocol === "https:"
+    ? "wss://"
+    : "ws://";
 
-// โหลดเสร็จ
-ws.onopen = () => {
+    ws =
+    new WebSocket(
+        protocol + location.host
+    );
 
-    let savedName =
-    localStorage.getItem("chatName");
+    ws.onopen = ()=>{
 
-    // ถ้ามีชื่อส่งมาจาก MIT App
-    if(appName && appName.trim() !== ""){
+        console.log("connected");
 
-        savedName = appName;
+        joined = false;
 
-        localStorage.setItem(
-            "chatName",
-            appName
+        // อ่านชื่อที่เคยเซฟ
+        let savedName =
+        localStorage.getItem(
+            "chatName"
         );
 
-    }
+        // ถ้ามีชื่อส่งมาจาก MIT App
+        if(
+            appName &&
+            appName.trim() !== ""
+        ){
 
-    // ถ้ามีชื่อแล้ว auto join
-    if(savedName){
+            savedName =
+            appName;
+
+            localStorage.setItem(
+                "chatName",
+                appName
+            );
+        }
+
+        // auto join ถ้ามีชื่อ
+        if(
+            savedName &&
+            savedName.trim() !== ""
+        ){
+
+            document.getElementById(
+                "username"
+            ).value =
+            savedName;
+
+            join(savedName);
+
+        }
+
+    };
+
+    ws.onmessage = (event)=>{
+
+        const data =
+        JSON.parse(event.data);
+
+        if(data.type === "clear"){
+
+            chat.innerHTML = "";
+
+        }
+
+        if(data.type === "online"){
+
+            document.getElementById(
+                "online"
+            ).innerHTML =
+            "👥 ออนไลน์: "
+            + data.count +
+            " คน";
+
+        }
+
+        if(data.type === "message"){
+
+            chat.innerHTML +=
+            `<div class="msg">${data.text}</div>`;
+
+            chat.scrollTop =
+            chat.scrollHeight;
+
+        }
+
+    };
+
+    ws.onclose = ()=>{
+
+        joined = false;
 
         document.getElementById(
-            "username"
-        ).value = savedName;
-
-        joinChat();
-
-    }
-
-};
-
-// รับข้อความ
-ws.onmessage = (event)=>{
-
-    const data =
-    JSON.parse(event.data);
-
-    if(data.type === "clear"){
-
-        chat.innerHTML = "";
-
-    }
-
-    if(data.type === "online"){
-
-        document.getElementById(
-            "online"
+            "myName"
         ).innerHTML =
-        "👥 ออนไลน์: "
-        + data.count +
-        " คน";
+        "⏳ กำลังเชื่อมต่อใหม่...";
 
+        setTimeout(
+            connect,
+            2000
+        );
+
+    };
+
+    ws.onerror = ()=>{};
+}
+
+// join ห้อง
+function join(username){
+
+    if(!ws) return;
+
+    if(
+        ws.readyState !==
+        WebSocket.OPEN
+    ){
+        return;
     }
 
-    if(data.type === "message"){
+    if(joined) return;
 
-        chat.innerHTML +=
-        `<div class="msg">${data.text}</div>`;
-
-        chat.scrollTop =
-        chat.scrollHeight;
-
-    }
-
-};
-
-// กด join
-function joinChat(){
-
-    if(joined)
-    return;
-
-    const username =
-    document.getElementById(
-        "username"
-    ).value.trim();
+    username =
+    username.trim();
 
     if(username === "")
     return;
@@ -103,6 +275,11 @@ function joinChat(){
         "chatName",
         username
     );
+
+    document.getElementById(
+        "username"
+    ).value =
+    username;
 
     document.getElementById(
         "myName"
@@ -121,17 +298,34 @@ function joinChat(){
     "none";
 
     joined = true;
+}
 
+// ปุ่ม Join
+function joinChat(){
+
+    const username =
+    document.getElementById(
+        "username"
+    ).value;
+
+    join(username);
 }
 
 // ส่งข้อความ
 function sendMsg(){
 
-    if(!joined)
-    return;
+    if(!joined) return;
+
+    if(
+        !ws ||
+        ws.readyState !==
+        WebSocket.OPEN
+    ) return;
 
     const msg =
-    document.getElementById("msg");
+    document.getElementById(
+        "msg"
+    );
 
     const text =
     msg.value.trim();
@@ -145,22 +339,26 @@ function sendMsg(){
     }));
 
     msg.value = "";
-
 }
 
-// enter ส่ง
-document.getElementById("msg")
-.addEventListener(
+// Enter ส่งข้อความ
+document.getElementById(
+    "msg"
+).addEventListener(
     "keypress",
     (e)=>{
 
         if(e.key==="Enter"){
-
             sendMsg();
-
         }
 
     }
 );
 
+// เริ่มระบบ
+connect();
+
 </script>
+
+</body>
+</html>
