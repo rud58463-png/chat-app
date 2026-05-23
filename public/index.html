@@ -1,7 +1,6 @@
 <script>
 
-const chat =
-document.getElementById("chat");
+const chat = document.getElementById("chat");
 
 const params =
 new URLSearchParams(window.location.search);
@@ -10,115 +9,93 @@ const appName =
 params.get("name");
 
 let joined = false;
-let ws = null;
 
-function connect(){
+const protocol =
+location.protocol === "https:"
+? "wss://"
+: "ws://";
 
-    const protocol =
-    location.protocol === "https:"
-    ? "wss://"
-    : "ws://";
+const ws =
+new WebSocket(protocol + location.host);
 
-    ws =
-    new WebSocket(protocol + location.host);
+// โหลดเสร็จ
+ws.onopen = () => {
 
-    ws.onopen = ()=>{
+    let savedName =
+    localStorage.getItem("chatName");
 
-        console.log("connected");
+    // ถ้ามีชื่อส่งมาจาก MIT App
+    if(appName && appName.trim() !== ""){
 
-        let savedName =
-        localStorage.getItem("chatName");
+        savedName = appName;
 
-        // ถ้าแอปส่งชื่อมา ให้ใช้ชื่อนี้
-        if(appName && appName.trim() !== ""){
-            savedName = appName;
-            localStorage.setItem(
-                "chatName",
-                appName
-            );
-        }
+        localStorage.setItem(
+            "chatName",
+            appName
+        );
 
-        // ถ้ามีชื่ออยู่แล้ว auto join
-        if(savedName){
-
-            join(savedName);
-
-        }else{
-
-            document.getElementById(
-                "joinBox"
-            ).style.display =
-            "flex";
-
-        }
-
-    };
-
-    ws.onmessage = (event)=>{
-
-        const data =
-        JSON.parse(event.data);
-
-        if(data.type === "clear"){
-            chat.innerHTML = "";
-        }
-
-        if(data.type === "online"){
-
-            document.getElementById(
-                "online"
-            ).innerHTML =
-            "👥 ออนไลน์: "
-            + data.count +
-            " คน";
-
-        }
-
-        if(data.type === "message"){
-
-            chat.innerHTML +=
-            `<div class="msg">${data.text}</div>`;
-
-            chat.scrollTop =
-            chat.scrollHeight;
-
-        }
-
-    };
-
-    ws.onclose = ()=>{
-
-        joined = false;
-
-        document.getElementById(
-            "myName"
-        ).innerHTML =
-        "⏳ reconnecting...";
-
-        setTimeout(connect,2000);
-
-    };
-
-}
-
-// join จริง
-function join(username){
-
-    username =
-    username.trim();
-
-    if(username === "")
-    return;
-
-    if(
-        !ws ||
-        ws.readyState !==
-        WebSocket.OPEN
-    ){
-        return;
     }
 
+    // ถ้ามีชื่อแล้ว auto join
+    if(savedName){
+
+        document.getElementById(
+            "username"
+        ).value = savedName;
+
+        joinChat();
+
+    }
+
+};
+
+// รับข้อความ
+ws.onmessage = (event)=>{
+
+    const data =
+    JSON.parse(event.data);
+
+    if(data.type === "clear"){
+
+        chat.innerHTML = "";
+
+    }
+
+    if(data.type === "online"){
+
+        document.getElementById(
+            "online"
+        ).innerHTML =
+        "👥 ออนไลน์: "
+        + data.count +
+        " คน";
+
+    }
+
+    if(data.type === "message"){
+
+        chat.innerHTML +=
+        `<div class="msg">${data.text}</div>`;
+
+        chat.scrollTop =
+        chat.scrollHeight;
+
+    }
+
+};
+
+// กด join
+function joinChat(){
+
     if(joined)
+    return;
+
+    const username =
+    document.getElementById(
+        "username"
+    ).value.trim();
+
+    if(username === "")
     return;
 
     // เซฟชื่อ
@@ -126,11 +103,6 @@ function join(username){
         "chatName",
         username
     );
-
-    document.getElementById(
-        "username"
-    ).value =
-    username;
 
     document.getElementById(
         "myName"
@@ -149,17 +121,6 @@ function join(username){
     "none";
 
     joined = true;
-}
-
-// ปุ่ม join
-function joinChat(){
-
-    const username =
-    document.getElementById(
-        "username"
-    ).value;
-
-    join(username);
 
 }
 
@@ -169,10 +130,11 @@ function sendMsg(){
     if(!joined)
     return;
 
+    const msg =
+    document.getElementById("msg");
+
     const text =
-    document.getElementById(
-        "msg"
-    ).value.trim();
+    msg.value.trim();
 
     if(text === "")
     return;
@@ -182,25 +144,23 @@ function sendMsg(){
         text:text
     }));
 
-    document.getElementById(
-        "msg"
-    ).value = "";
+    msg.value = "";
 
 }
 
-document.getElementById(
-    "msg"
-).addEventListener(
+// enter ส่ง
+document.getElementById("msg")
+.addEventListener(
     "keypress",
     (e)=>{
 
         if(e.key==="Enter"){
+
             sendMsg();
+
         }
 
     }
 );
-
-connect();
 
 </script>
