@@ -43,8 +43,11 @@ h2{
 #joinBox{
     padding:15px;
     display:flex;
-    flex-direction:column;
     gap:10px;
+}
+
+#joinBox input{
+    flex:1;
 }
 
 #chat{
@@ -90,15 +93,6 @@ button{
     flex:1;
 }
 
-#myProfile{
-    width:60px;
-    height:60px;
-    border-radius:50%;
-    object-fit:cover;
-    margin-top:10px;
-    display:none;
-}
-
 </style>
 </head>
 
@@ -116,39 +110,18 @@ button{
 👤 ชื่อของคุณ: ยังไม่ได้ Join
 </div>
 
-<img id="myProfile">
-
 </header>
 
 <div id="joinBox">
-
-<input
-id="username"
-placeholder="ตั้งชื่อ">
-
-<input
-type="file"
-id="profileInput"
-accept="image/*">
-
-<button onclick="joinChat()">
-Join
-</button>
-
+<input id="username" placeholder="ตั้งชื่อ">
+<button onclick="joinChat()">Join</button>
 </div>
 
 <div id="chat"></div>
 
 <div id="bottomBar">
-
-<input
-id="msg"
-placeholder="พิมพ์ข้อความ">
-
-<button onclick="sendMsg()">
-ส่ง
-</button>
-
+<input id="msg" placeholder="พิมพ์ข้อความ">
+<button onclick="sendMsg()">ส่ง</button>
 </div>
 
 <script>
@@ -177,8 +150,7 @@ function connect(){
 
     ws =
     new WebSocket(
-        protocol +
-        location.host
+        protocol + location.host
     );
 
     ws.onopen = ()=>{
@@ -199,7 +171,9 @@ function connect(){
             "none";
 
             join(savedName);
+
         }
+
     };
 
     ws.onmessage = (event)=>{
@@ -210,6 +184,7 @@ function connect(){
         if(data.type === "clear"){
 
             chat.innerHTML = "";
+
         }
 
         if(data.type === "online"){
@@ -220,6 +195,7 @@ function connect(){
             "👥 ออนไลน์: "
             + data.count +
             " คน";
+
         }
 
         if(data.type === "message"){
@@ -229,7 +205,9 @@ function connect(){
 
             chat.scrollTop =
             chat.scrollHeight;
+
         }
+
     };
 
     ws.onclose = ()=>{
@@ -245,6 +223,7 @@ function connect(){
             connect,
             2000
         );
+
     };
 
     ws.onerror = ()=>{};
@@ -281,26 +260,6 @@ function join(username){
     "👤 ชื่อของคุณ: "
     + username;
 
-    // โหลดรูปโปรไฟล์
-    const savedProfile =
-    localStorage.getItem(
-        "profileImage"
-    );
-
-    if(savedProfile){
-
-        const img =
-        document.getElementById(
-            "myProfile"
-        );
-
-        img.src =
-        savedProfile;
-
-        img.style.display =
-        "block";
-    }
-
     ws.send(JSON.stringify({
         type:"join",
         username:username
@@ -322,36 +281,7 @@ function joinChat(){
         "username"
     ).value;
 
-    const file =
-    document.getElementById(
-        "profileInput"
-    ).files[0];
-
-    // ถ้ามีเลือกรูป
-    if(file){
-
-        const reader =
-        new FileReader();
-
-        reader.onload =
-        function(e){
-
-            localStorage.setItem(
-                "profileImage",
-                e.target.result
-            );
-
-            join(username);
-        };
-
-        reader.readAsDataURL(
-            file
-        );
-
-    }else{
-
-        join(username);
-    }
+    join(username);
 }
 
 // ส่งข้อความ
@@ -394,6 +324,7 @@ document.getElementById(
         if(e.key==="Enter"){
             sendMsg();
         }
+
     }
 );
 
