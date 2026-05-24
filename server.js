@@ -157,6 +157,11 @@ function doJoin(username, profile){
     myUsername = username;
     myProfile = profile || myProfile;
     setStatus("⏳ กำลัง Join...");
+    var timeout = setTimeout(function(){
+        setStatus("⚠️ เชื่อมต่อ server ไม่ได้ ลองรีเฟรช");
+        document.getElementById("joinBox").style.display = "flex";
+    }, 8000);
+    
     xhr("POST", "/join", { id: myId, username: username, profile: myProfile }, function(data){
         if(data && data.ok){
             joined = true;
@@ -208,8 +213,6 @@ function poll(){
                     chat.innerHTML += '<div class="joinMsg">' + m.username + '</div>';
                 } else {
                     chat.innerHTML += '<div class="msg"><div class="messageRow"><img class="profileImg" data-user="' + m.username + '" src="' + (m.profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png') + '">
-                }
-                if(m.time > lastTime) lastTime = m.time;
             });
             chat.scrollTop = chat.scrollHeight;
         }
