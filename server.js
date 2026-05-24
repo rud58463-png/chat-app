@@ -13,7 +13,7 @@ setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
         // ขยายเวลาเช็กเป็น 20 วินาที เพื่อป้องกันระบบมองว่าหลุดตอนที่อินเทอร์เน็ตสะดุดชั่วคราว
-        if(now - c.lastSeen > 20000) {
+        if(now - c.lastSeen > 90000) {
             messages.push({
                 type: 'join',
                 username: `<span style="color: #ff4a4a;">🔴 ${c.username} ออกจากห้องแชทแล้ว</span>`,
@@ -22,7 +22,7 @@ setInterval(() => {
             clients.delete(id); 
         }
     }
-}, 10000);
+}, 90000);
 
 app.post('/join', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -69,7 +69,7 @@ app.get('/poll', (req, res) => {
     res.json({ online: clients.size, messages: newMsgs, serverTime: Date.now() });
 });
 
-app.get('/', (req, res) => {
+app.get('/', (req, res) => 
     res.send(`<!DOCTYPE html>
 <html>
 <head>
@@ -141,6 +141,7 @@ function setStatus(msg){ document.getElementById("myName").innerHTML = msg; }
 function xhr(method, url, data, cb){
     var x = new XMLHttpRequest();
     x.open(method, url, true);
+    x.timeout = 8000; // timeout 8 วินาที ป้องกันค้าง
     if(method === "POST") x.setRequestHeader("Content-Type", "application/json");
     x.onreadystatechange = function(){
         if(x.readyState === 4){
@@ -148,6 +149,7 @@ function xhr(method, url, data, cb){
         }
     };
     x.onerror = function(){ cb(null); };
+    x.ontimeout = function(){ cb(null); }; // เพิ่มบรรทัดนี้
     x.send(data ? JSON.stringify(data) : null);
 }
 
@@ -205,7 +207,7 @@ function poll(){
                 if(m.type === "join"){
                     chat.innerHTML += '<div class="joinMsg">' + m.username + '</div>';
                 } else {
-                    chat.innerHTML += '<div class="msg"><div class="messageRow"><img class="profileImg" src="' + (m.profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png') + '"><div class="messageContent"><div class="messageName">' + m.username + '</div><div class="messageText">' + m.text + '</div></div></div></div>';
+                    chat.innerHTML += '<div class="msg"><div class="messageRow"><img class="profileImg" data-user="' + m.username + '" src="' + (m.profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png') + '">
                 }
                 if(m.time > lastTime) lastTime = m.time;
             });
@@ -223,43 +225,50 @@ imgProfileElement.onclick = function() {
 };
 
 var lastWVS = "";
-setInterval(function(){
-    try{
-        var wvs = window.AppInventor.getWebViewString();
-        if(wvs && wvs !== "PICK_IMAGE" && wvs !== lastWVS){
-            lastWVS = wvs;
-            if(wvs.length > 100){
-                if (wvs.length > 10000000) { 
-                    setStatus("⚠️ ขนาดรูปภาพใหญ่เกินไป");
+    setInterval(function(){
+        try{
+            var wvs = window.AppInventor.getWebViewString();
+            if(wvs && wvs !== "PICK_IMAGE" && wvs !== lastWVS){
+                lastWVS = wvs;
+                if(wvs.length > 100){
+                    if (wvs.length > 10000000) { 
+                        setStatus("⚠️ ขนาดรูปภาพใหญ่เกินไป");
+                        try{ window.AppInventor.setWebViewString(""); }catch(err){}
+                        return; 
+                    }
+                    var base64Data = wvs;
+                    if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
+                    myProfile = base64Data;
+                    imgProfileElement.src = base64Data;
+                    document.querySelectorAll(".profileImg").forEach(function(img){
+                         if(img.getAttribute("data-user") === myUsername){
+                             img.src = base64Data;
+                            }
+                        });
+                    try{ localStorage.setItem("profileImage", base64Data); }catch(e){}
+                    if(joined){
+                        xhr("POST", "/join", { id: myId, username: myUsername, profile: base64Data }, function(){
+                            setStatus("👤 ชื่อของคุณ: " + myUsername + " (อัปเดตรูปแล้ว)");
+                        });
+                    }
                     try{ window.AppInventor.setWebViewString(""); }catch(err){}
-                    return; 
                 }
-                var base64Data = wvs;
-                if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
-                myProfile = base64Data;
-                imgProfileElement.src = base64Data;
-                try{ localStorage.setItem("profileImage", base64Data); }catch(e){}
-                if(joined){
-                    xhr("POST", "/join", { id: myId, username: myUsername, profile: base64Data }, function(){
-                        setStatus("👤 ชื่อของคุณ: " + myUsername + " (อัปเดตรูปแล้ว)");
-                    });
-                }
-                try{ window.AppInventor.setWebViewString(""); }catch(err){}
             }
-        }
-    }catch(e){}
-}, 500);
+        }catch(e){}
+    }, 500);
 
-var finalName = appName || localStorage.getItem("savedUsername");
-if(finalName){
-    document.getElementById("username").value = finalName;
-    setTimeout(function(){ doJoin(finalName, myProfile); }, 500);
-}
+    function startPolling() {
+        if (!joined) { setTimeout(startPolling, 500); return; }
+        poll();
+        setTimeout(startPolling, 2000);
+    }
+    startPolling();
 
-setInterval(poll, 2000);
-</script>
+    document.addEventListener("visibilitychange", function() {
+        if (!document.hidden && joined) poll();
+    });
+
+</script>       
 </body>
-</html>`);
-});
-
+</html>`));
 app.listen(3000, () => console.log('Server running on port 3000'));
