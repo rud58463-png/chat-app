@@ -212,7 +212,9 @@ function poll(){
                 if(m.type === "join"){
                     chat.innerHTML += '<div class="joinMsg">' + m.username + '</div>';
                 } else {
-                    chat.innerHTML += '<div class="msg"><div class="messageRow"><img class="profileImg" data-user="' + m.username + '" src="' + (m.profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png') + '">
+                    chat.innerHTML += '<div class="msg"><div class="messageRow"><img class="profileImg" data-user="' + m.username + '" src="' + (m.profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png') + '"><div class="messageContent"><div class="messageName">' + m.username + '</div><div class="messageText">' + m.text + '</div></div></div></div>';
+                }
+                if(m.time > lastTime) lastTime = m.time;
             });
             chat.scrollTop = chat.scrollHeight;
         }
