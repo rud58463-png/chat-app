@@ -13,7 +13,7 @@ setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
         // ขยายเวลาเช็กเป็น 20 วินาที เพื่อป้องกันระบบมองว่าหลุดตอนที่อินเทอร์เน็ตสะดุดชั่วคราว
-        if(now - c.lastSeen > 90000) {
+        if(now - c.lastSeen > 10000) {
             messages.push({
                 type: 'join',
                 username: `<span style="color: #ff4a4a;">🔴 ${c.username} ออกจากห้องแชทแล้ว</span>`,
@@ -22,7 +22,7 @@ setInterval(() => {
             clients.delete(id); 
         }
     }
-}, 90000);
+}, 20000);
 
 app.post('/join', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
