@@ -101,18 +101,18 @@ h2{ margin:0; font-size:20px; }
 </style>
 </head>
 <body>
-<header>
-  <div class="header-info">
-    <h2>💬 ห้องแชทรวม</h2>
-    <div id="online">👥 ออนไลน์: 0 คน</div>
-    <div id="myName">👤 ชื่อของคุณ: ยังไม่ได้ Join</div>
+<header style="background:#1b1b1b; padding:10px 15px; border-bottom:1px solid #333; flex-shrink:0;">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div>
+      <h2 style="margin:0; font-size:18px;">💬 ห้องแชทรวม</h2>
+      <div id="online" style="font-size:13px; color:#aaa; margin-top:4px;">👥 ออนไลน์: 0 คน</div>
+      <div id="myName" style="font-size:13px; color:#aaa;">👤 ยังไม่ได้ Join</div>
+    </div>
+    <img id="myProfile" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #00a2ff; cursor:pointer;">
   </div>
-  <img id="myProfile" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
-
-  <!-- ✅ ย้ายมาไว้ใน header -->
-  <div id="joinBox" style="width:100%; margin-top:10px; display:flex; flex-direction:column; gap:8px;">
-    <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้ที่นี่..." style="width:100%; border:none; outline:none; border-radius:8px; padding:12px; font-size:16px; background:#333; color:white;">
-    <button id="joinBtn" onclick="joinChat()" style="width:100%; border:none; border-radius:8px; padding:12px; font-size:16px; cursor:pointer; background:#007bff; color:white; font-weight:bold;">กดเพื่อ Join เข้าแชท</button>
+  <div id="joinBox" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+    <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้..." style="width:100%; border:none; outline:none; border-radius:8px; padding:10px; font-size:15px; background:#333; color:white; box-sizing:border-box;">
+    <button onclick="joinChat()" style="width:100%; border:none; border-radius:8px; padding:10px; font-size:15px; cursor:pointer; background:#007bff; color:white; font-weight:bold;">กดเพื่อ Join เข้าแชท</button>
   </div>
 </header>
 <div id="chat"></div>
