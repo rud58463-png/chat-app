@@ -71,55 +71,185 @@ app.get('/poll', (req, res) => {
 
 app.get('/', (req, res) => 
     res.send(`<!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Chat Room</title>
 <style>
-*{ box-sizing:border-box; }
-body{ margin:0; background:#111; color:white; font-family:sans-serif; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
-header{ background:#1b1b1b; padding:15px; border-bottom:1px solid #333; flex-shrink:0; display:flex; justify-content:space-between; align-items:center; }
-.header-info { flex:1; }
-h2{ margin:0; font-size:20px; }
-#online,#myName{ margin-top:6px; font-size:14px; color:#aaa; }
-#myProfile{ width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #00a2ff; cursor:pointer; background:#222; display:block; }
-#joinBox{ background:#222; padding:15px; border-bottom:2px solid #333; display:flex; flex-direction:column; gap:10px; flex-shrink:0; }
-#joinBox input[type="text"]{ width:100%; border:none; outline:none; border-radius:8px; padding:12px; font-size:16px; background:#333; color:white; }
-#joinBtn{ width:100%; border:none; border-radius:8px; padding:12px; font-size:16px; cursor:pointer; background:#007bff; color:white; font-weight:bold; }
-#chat{ flex:1; overflow-y:auto; padding:12px; background:#181818; }
-.msg{ background:#262626; margin-bottom:10px; padding:10px; border-radius:10px; border:1px solid #333; }
-.messageRow{ display:flex; gap:10px; align-items:flex-start; }
-.profileImg{ width:40px; height:40px; border-radius:50%; object-fit:cover; flex-shrink:0; }
-.messageContent{ flex:1; word-break:break-all; }
-.messageName{ font-weight:bold; color:#00a2ff; margin-bottom:2px; font-size:14px; }
-.messageText{ font-size:15px; color:#eee;
-.joinMsg{ text-align:center; font-size:13px; padding:6px; background:#1f1f1f; margin-bottom:10px; border-radius:6px; border: 1px dashed #333; font-weight:bold; }
-#bottomBar{ display:flex; gap:8px; padding:12px; border-top:1px solid #333; background:#1b1b1b; flex-shrink:0; }
-#msg{ flex:1; border:none; outline:none; border-radius:8px; padding:12px; font-size:16px; background:#252525; color:white; }
-#sendBtn{ border:none; border-radius:8px; padding:12px 20px; font-size:16px; cursor:pointer; background:#fff; color:#000; font-weight:bold; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { 
+    margin: 0; 
+    background: #0d0e12; 
+    color: #f1f2f6; 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh; 
+    overflow: hidden; 
+  }
+  
+  header { 
+    background: #16171e; 
+    padding: 14px 16px; 
+    border-bottom: 1px solid #232530; 
+    flex-shrink: 0; 
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  .header-top {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+  }
+  h2 { margin: 0; font-size: 18px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px; }
+  #online { font-size: 12px; color: #a4b0be; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+  #myName { font-size: 12px; color: #747d8c; margin-top: 2px; }
+  
+  #myProfile { 
+    width: 48px; 
+    height: 48px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+    border: 2px solid #0056ff; 
+    cursor: pointer; 
+    background: #1e202c; 
+    transition: transform 0.2s, border-color 0.2s;
+    box-shadow: 0 0 10px rgba(0, 86, 255, 0.2);
+  }
+  #myProfile:active { transform: scale(0.95); border-color: #00a2ff; }
+
+  #joinBox { 
+    margin-top: 12px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 8px; 
+    background: #1e202c;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #2d3043;
+  }
+  #joinBox input[type="text"] { 
+    width: 100%; 
+    border: 1px solid #2d3043; 
+    outline: none; 
+    border-radius: 8px; 
+    padding: 10px 12px; 
+    font-size: 14px; 
+    background: #12131a; 
+    color: white; 
+    transition: border-color 0.2s;
+  }
+  #joinBox input[type="text"]:focus { border-color: #0056ff; }
+  #joinBtn { 
+    width: 100%; 
+    border: none; 
+    border-radius: 8px; 
+    padding: 11px; 
+    font-size: 14px; 
+    cursor: pointer; 
+    background: #0056ff; 
+    color: white; 
+    font-weight: bold; 
+    transition: background 0.2s;
+  }
+  #joinBtn:active { background: #0041c2; }
+
+  #chat { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 16px; 
+    background: #0d0e12; 
+    scroll-behavior: smooth;
+  }
+  
+  .msg { 
+    background: #16171e; 
+    margin-bottom: 12px; 
+    padding: 12px; 
+    border-radius: 14px; 
+    border: 1px solid #1f212c; 
+    max-width: 90%;
+    animation: fadeIn 0.2s ease-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  
+  .messageRow { display: flex; gap: 10px; align-items: flex-start; }
+  .profileImg { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #1e202c; border: 1px solid #2d3043; }
+  .messageContent { flex: 1; word-break: break-all; }
+  .messageName { font-weight: 600; color: #54a0ff; margin-bottom: 3px; font-size: 13px; }
+  .messageText { font-size: 14px; color: #e1e2eb; line-height: 1.4; }
+  
+  .joinMsg { 
+    text-align: center; 
+    font-size: 12px; 
+    padding: 6px 12px; 
+    background: #16171e; 
+    margin: 10px auto; 
+    border-radius: 20px; 
+    border: 1px solid #232530; 
+    font-weight: 500;
+    max-width: fit-content;
+  }
+
+  #bottomBar { 
+    display: flex; 
+    gap: 8px; 
+    padding: 12px 16px; 
+    border-top: 1px solid #232530; 
+    background: #16171e; 
+    flex-shrink: 0; 
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+  }
+  #msg { 
+    flex: 1; 
+    border: 1px solid #2d3043; 
+    outline: none; 
+    border-radius: 24px; 
+    padding: 10px 16px; 
+    font-size: 14px; 
+    background: #0d0e12; 
+    color: white; 
+    transition: border-color 0.2s;
+  }
+  #msg:focus { border-color: #0056ff; }
+  #sendBtn { 
+    border: none; 
+    border-radius: 24px; 
+    padding: 10px 20px; 
+    font-size: 14px; 
+    cursor: pointer; 
+    background: #0056ff; 
+    color: #fff; 
+    font-weight: bold; 
+    transition: background 0.2s;
+  }
+  #sendBtn:active { background: #0041c2; }
 </style>
 </head>
 <body>
-<header style="background:#1b1b1b; padding:10px 15px; border-bottom:1px solid #333; flex-shrink:0;">
-  <div style="display:flex; justify-content:space-between; align-items:center;">
+
+<header>
+  <div class="header-top">
     <div>
-      <h2 style="margin:0; font-size:18px;">💬 ห้องแชทรวม</h2>
-      <div id="online" style="font-size:13px; color:#aaa; margin-top:4px;">👥 ออนไลน์: 0 คน</div>
-      <div id="myName" style="font-size:13px; color:#aaa;">👤 ยังไม่ได้ Join</div>
+      <h2>💬 ห้องแชทรวม</h2>
+      <div id="online">👥 ออนไลน์: 0 คน</div>
+      <div id="myName">👤 ยังไม่ได้ Join</div>
     </div>
-    <img id="myProfile" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #00a2ff; cursor:pointer;">
+    <img id="myProfile" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile">
   </div>
-  <div id="joinBox" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
-    <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้..." style="width:100%; border:none; outline:none; border-radius:8px; padding:10px; font-size:15px; background:#333; color:white; box-sizing:border-box;">
-    <button onclick="joinChat()" style="width:100%; border:none; border-radius:8px; padding:10px; font-size:15px; cursor:pointer; background:#007bff; color:white; font-weight:bold;">กดเพื่อ Join เข้าแชท</button>
+  <div id="joinBox">
+    <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้ที่นี่...">
+    <button id="joinBtn" onclick="joinChat()">กดเพื่อ Join เข้าแชท</button>
   </div>
 </header>
+
 <div id="chat"></div>
+
 <div id="bottomBar">
   <input id="msg" placeholder="พิมพ์ข้อความ...">
   <button id="sendBtn" onclick="sendMsg()">ส่ง</button>
 </div>
+
 <script>
 var chat = document.getElementById("chat");
 var imgProfileElement = document.getElementById("myProfile");
@@ -129,7 +259,7 @@ var joined = false;
 var myId = "id_" + Math.random().toString(36).slice(2);
 var myUsername = "";
 var myProfile = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-var lastTime = Date.now() - 30000; // ดึงข้อความย้อนหลัง 30 วินาทีแรกที่เข้าแชท ป้องกันข้อความไม่ขึ้น
+var lastTime = Date.now() - 30000; // ดึงข้อความย้อนหลัง 30 วินาทีแรกที่เข้าแชท
 
 try {
     var savedName = localStorage.getItem("savedUsername");
@@ -143,7 +273,7 @@ function setStatus(msg){ document.getElementById("myName").innerHTML = msg; }
 function xhr(method, url, data, cb){
     var x = new XMLHttpRequest();
     x.open(method, url, true);
-    x.timeout = 8000; // timeout 8 วินาที ป้องกันค้าง
+    x.timeout = 8000; // timeout 8 วินาที
     if(method === "POST") x.setRequestHeader("Content-Type", "application/json");
     x.onreadystatechange = function(){
         if(x.readyState === 4){
@@ -151,7 +281,7 @@ function xhr(method, url, data, cb){
         }
     };
     x.onerror = function(){ cb(null); };
-    x.ontimeout = function(){ cb(null); }; // เพิ่มบรรทัดนี้
+    x.ontimeout = function(){ cb(null); };
     x.send(data ? JSON.stringify(data) : null);
 }
 
@@ -160,11 +290,12 @@ function doJoin(username, profile){
     myProfile = profile || myProfile;
     setStatus("⏳ กำลัง Join...");
     var timeout = setTimeout(function(){
-        setStatus("⚠️ เชื่อมต่อ server ไม่ได้ ลองรีเฟรช");
+        setStatus("⚠️ เชื่อมต่อ server ไม่ได้ ลองใหม่");
         document.getElementById("joinBox").style.display = "flex";
     }, 8000);
     
     xhr("POST", "/join", { id: myId, username: username, profile: myProfile }, function(data){
+        clearTimeout(timeout);
         if(data && data.ok){
             joined = true;
             setStatus("👤 ชื่อของคุณ: " + username);
@@ -196,10 +327,10 @@ function sendMsg(){
     msg.value = ""; // เคลียร์ช่องพิมพ์ทันที
     xhr("POST", "/chat", { id: myId, text: tempText }, function(res){
         if(!res || !res.ok) {
-            msg.value = tempText; // ถ้าส่งไม่ไป ให้คืนข้อความกลับมาพิมพ์ใหม่
+            msg.value = tempText; // ถ้าส่งไม่ไป คืนข้อความกลับมาพิมพ์ใหม่
             setStatus("⚠️ ส่งข้อความไม่สำเร็จ ลองอีกครั้ง");
         } else {
-            poll(); // ส่งผ่านปุ๊บ ให้ดึงแชทมาโชว์ทันที ไม่ต้องรอลูป
+            poll(); // ส่งผ่านแล้วให้ดึงแชทมาโชว์ทันที
         }
     });
 }
@@ -232,49 +363,48 @@ imgProfileElement.onclick = function() {
 };
 
 var lastWVS = "";
-    setInterval(function(){
-        try{
-            var wvs = window.AppInventor.getWebViewString();
-            if(wvs && wvs !== "PICK_IMAGE" && wvs !== lastWVS){
-                lastWVS = wvs;
-                if(wvs.length > 100){
-                    if (wvs.length > 10000000) { 
-                        setStatus("⚠️ ขนาดรูปภาพใหญ่เกินไป");
-                        try{ window.AppInventor.setWebViewString(""); }catch(err){}
-                        return; 
-                    }
-                    var base64Data = wvs;
-                    if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
-                    myProfile = base64Data;
-                    imgProfileElement.src = base64Data;
-                    document.querySelectorAll(".profileImg").forEach(function(img){
-                         if(img.getAttribute("data-user") === myUsername){
-                             img.src = base64Data;
-                            }
-                        });
-                    try{ localStorage.setItem("profileImage", base64Data); }catch(e){}
-                    if(joined){
-                        xhr("POST", "/join", { id: myId, username: myUsername, profile: base64Data }, function(){
-                            setStatus("👤 ชื่อของคุณ: " + myUsername + " (อัปเดตรูปแล้ว)");
-                        });
-                    }
+setInterval(function(){
+    try{
+        var wvs = window.AppInventor.getWebViewString();
+        if(wvs && wvs !== "PICK_IMAGE" && wvs !== lastWVS){
+            lastWVS = wvs;
+            if(wvs.length > 100){
+                if (wvs.length > 10000000) { 
+                    setStatus("⚠️ ขนาดรูปภาพใหญ่เกินไป");
                     try{ window.AppInventor.setWebViewString(""); }catch(err){}
+                    return; 
                 }
+                var base64Data = wvs;
+                if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
+                myProfile = base64Data;
+                imgProfileElement.src = base64Data;
+                document.querySelectorAll(".profileImg").forEach(function(img){
+                     if(img.getAttribute("data-user") === myUsername){
+                         img.src = base64Data;
+                        }
+                    });
+                try{ localStorage.setItem("profileImage", base64Data); }catch(e){}
+                if(joined){
+                    xhr("POST", "/join", { id: myId, username: myUsername, profile: base64Data }, function(){
+                        setStatus("👤 ชื่อของคุณ: " + myUsername + " (อัปเดตรูปแล้ว)");
+                    });
+                }
+                try{ window.AppInventor.setWebViewString(""); }catch(err){}
             }
-        }catch(e){}
-    }, 500);
+        }
+    }catch(e){}
+}, 500);
 
-    function startPolling() {
-        if (!joined) { setTimeout(startPolling, 500); return; }
-        poll();
-        setTimeout(startPolling, 2000);
-    }
-    startPolling();
+function startPolling() {
+    if (!joined) { setTimeout(startPolling, 500); return; }
+    poll();
+    setTimeout(startPolling, 2000);
+}
+startPolling();
 
-    document.addEventListener("visibilitychange", function() {
-        if (!document.hidden && joined) poll();
-    });
-
+document.addEventListener("visibilitychange", function() {
+    if (!document.hidden && joined) poll();
+});
 </script>       
 </body>
 </html>`));
