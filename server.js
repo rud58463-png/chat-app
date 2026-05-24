@@ -93,7 +93,7 @@ h2{ margin:0; font-size:20px; }
 .profileImg{ width:40px; height:40px; border-radius:50%; object-fit:cover; flex-shrink:0; }
 .messageContent{ flex:1; word-break:break-all; }
 .messageName{ font-weight:bold; color:#00a2ff; margin-bottom:2px; font-size:14px; }
-.messageText{ font-size:15px; color:#eee; }
+.messageText{ font-size:15px; color:#eee;
 .joinMsg{ text-align:center; font-size:13px; padding:6px; background:#1f1f1f; margin-bottom:10px; border-radius:6px; border: 1px dashed #333; font-weight:bold; }
 #bottomBar{ display:flex; gap:8px; padding:12px; border-top:1px solid #333; background:#1b1b1b; flex-shrink:0; }
 #msg{ flex:1; border:none; outline:none; border-radius:8px; padding:12px; font-size:16px; background:#252525; color:white; }
@@ -108,11 +108,13 @@ h2{ margin:0; font-size:20px; }
     <div id="myName">👤 ชื่อของคุณ: ยังไม่ได้ Join</div>
   </div>
   <img id="myProfile" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+
+  <!-- ✅ ย้ายมาไว้ใน header -->
+  <div id="joinBox" style="width:100%; margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+    <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้ที่นี่..." style="width:100%; border:none; outline:none; border-radius:8px; padding:12px; font-size:16px; background:#333; color:white;">
+    <button id="joinBtn" onclick="joinChat()" style="width:100%; border:none; border-radius:8px; padding:12px; font-size:16px; cursor:pointer; background:#007bff; color:white; font-weight:bold;">กดเพื่อ Join เข้าแชท</button>
+  </div>
 </header>
-<div id="joinBox">
-  <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้ที่นี่...">
-  <button id="joinBtn" onclick="joinChat()">กดเพื่อ Join เข้าแชท</button>
-</div>
 <div id="chat"></div>
 <div id="bottomBar">
   <input id="msg" placeholder="พิมพ์ข้อความ...">
