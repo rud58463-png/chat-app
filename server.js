@@ -8,11 +8,10 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const messages = [];
 const clients = new Map();
 
-// ระบบตรวจจับคนออกจากห้องแชท (ปรับเวลาให้เสถียรขึ้น ป้องกันการหลุดปล่อย)
+// ระบบตรวจจับคนออกจากห้องแชท
 setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
-        // ขยายเวลาเช็กเป็น 20 วินาที เพื่อป้องกันระบบมองว่าหลุดตอนที่อินเทอร์เน็ตสะดุดชั่วคราว
         if(now - c.lastSeen > 100000) {
             messages.push({
                 type: 'join',
@@ -29,7 +28,6 @@ app.post('/join', (req, res) => {
     const { id, username, profile } = req.body;
     if(!id || !username) return res.json({ ok: false });
     
-    // แจ้งเตือนเข้าห้องเฉพาะตอนที่เข้ามาใหม่จริงๆ เท่านั้น ป้องกันข้อความเด้งซ้ำซ้อน
     if (!clients.has(id)) {
         messages.push({ 
             type: 'join', 
@@ -51,7 +49,7 @@ app.post('/chat', (req, res) => {
     
     if(!user || !text) return res.json({ ok: false });
     
-    user.lastSeen = Date.now(); // อัปเดตเวลาออนไลน์ทันทีที่ส่งข้อความ
+    user.lastSeen = Date.now(); 
     messages.push({ type:'message', username: user.username, profile: user.profile, text, time: Date.now() });
     
     if(messages.length > 200) messages.shift();
@@ -259,7 +257,7 @@ var joined = false;
 var myId = "id_" + Math.random().toString(36).slice(2);
 var myUsername = "";
 var myProfile = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-var lastTime = Date.now() - 30000; // ดึงข้อความย้อนหลัง 30 วินาทีแรกที่เข้าแชท
+var lastTime = Date.now() - 30000; 
 
 try {
     var savedName = localStorage.getItem("savedUsername");
@@ -270,13 +268,10 @@ try {
         imgProfileElement.src = savedImg; 
     }
     
-    // ถ้าเคยพิมพ์ชื่อไว้แล้ว ให้เอารายชื่อมาใส่ และสั่งระบบให้ Join เข้าแชทอัตโนมัติทันที!
     if(savedName) { 
         document.getElementById("username").value = savedName; 
-        // หน่วงเวลาเซตอัปแป๊บเดียวแล้วเข้าห้องเลย ไม่ต้องคอยกดปุ่ม
         setTimeout(function(){
             doJoin(savedName, myProfile);
-            window.AppInventor.setWebViewString("SAVE_NAME:" + username);
         }, 500);
     }
 } catch(e){}
@@ -286,7 +281,7 @@ function setStatus(msg){ document.getElementById("myName").innerHTML = msg; }
 function xhr(method, url, data, cb){
     var x = new XMLHttpRequest();
     x.open(method, url, true);
-    x.timeout = 8000; // timeout 8 วินาที
+    x.timeout = 8000; 
     if(method === "POST") x.setRequestHeader("Content-Type", "application/json");
     x.onreadystatechange = function(){
         if(x.readyState === 4){
@@ -339,13 +334,13 @@ function sendMsg(){
     var text = msg.value.trim();
     if(text === "") return;
     var tempText = text;
-    msg.value = ""; // เคลียร์ช่องพิมพ์ทันที
+    msg.value = ""; 
     xhr("POST", "/chat", { id: myId, text: tempText }, function(res){
         if(!res || !res.ok) {
-            msg.value = tempText; // ถ้าส่งไม่ไป คืนข้อความกลับมาพิมพ์ใหม่
+            msg.value = tempText; 
             setStatus("⚠️ ส่งข้อความไม่สำเร็จ ลองอีกครั้ง");
         } else {
-            poll(); // ส่งผ่านแล้วให้ดึงแชทมาโชว์ทันที
+            poll(); 
         }
     });
 }
@@ -381,7 +376,10 @@ var lastWVS = "";
 setInterval(function(){
     try{
         var wvs = window.AppInventor.getWebViewString();
-        if(wvs && wvs.startsWith("LOAD_DATA|")){
+        if(!wvs) return;
+
+        // 1. ตรวจจับการโหลดชื่อและรูปจาก TinyDB ตอนเปิดแอป
+        if(wvs.startsWith("LOAD_DATA|")){
             var parts = wvs.split("|");
             var loadedName = parts[1];
             var loadedImg = parts[2];
@@ -394,18 +392,58 @@ setInterval(function(){
                 myProfile = loadedImg;
                 imgProfileElement.src = loadedImg;
             }
-            
-            // เมื่อได้ค่าจาก TinyDB แล้ว สั่งให้แอปล็อกอินเข้าห้องอัตโนมัติทันที!
             if(loadedName) {
                 doJoin(loadedName, myProfile);
             }
-            try{ window.AppInventor.setWebViewString(""); }catch(err){} // เคลียร์ค่าซะ
+            try{ window.AppInventor.setWebViewString(""); }catch(err){} 
             return;
         }
 
-        // ... (โค้ดตรวจจับเซฟรูปภาพเดิมของคุณ PICK_IMAGE ด้านล่างปล่อยไว้ตามปกติ) ...
-        if(wvs && wvs !== "PICK_IMAGE" && wvs !== lastWVS){
-             // โค้ดเดิมของคุณ...
+        // 2. ตรวจจับรูปภาพใหม่ที่ส่งมาจาก App Inventor (รองรับทุกไฟล์ + ย่อขนาดอัตโนมัติ)
+        if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100){
+            lastWVS = wvs;
+            var base64Data = wvs;
+            if (!base64Data.startsWith("data:image")) { 
+                base64Data = "data:image/jpeg;base64," + base64Data; 
+            }
+
+            // ใช้ Canvas ย่อขนาดรูปภาพในฝั่งหน้าเว็บเพื่อรองรับ PNG/JPG
+            var img = new Image();
+            img.src = base64Data;
+            img.onload = function() {
+                var canvas = document.createElement('canvas');
+                var ctx = canvas.getContext('2d');
+                var MAX_WIDTH = 300; // บังคับรูปกว้างไม่เกิน 300px
+                var scaleSize = MAX_WIDTH / img.width;
+                
+                if(img.width > MAX_WIDTH) {
+                    canvas.width = MAX_WIDTH;
+                    canvas.height = img.height * scaleSize;
+                } else {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                }
+
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                var resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+                myProfile = resizedBase64;
+                imgProfileElement.src = resizedBase64;
+
+                document.querySelectorAll(".profileImg").forEach(function(el){
+                    if(el.getAttribute("data-user") === myUsername){ el.src = resizedBase64; }
+                });
+
+                try{ localStorage.setItem("profileImage", resizedBase64); }catch(e){}
+                try{ window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + resizedBase64); }catch(e){}
+
+                if(joined){
+                    xhr("POST", "/join", { id: myId, username: myUsername, profile: resizedBase64 }, function(){
+                        setStatus("👤 ชื่อของคุณ: " + myUsername + " (อัปเดตรูปแล้ว)");
+                    });
+                }
+            };
+            try{ window.AppInventor.setWebViewString(""); }catch(err){}
         }
     }catch(e){}
 }, 500);
