@@ -15,7 +15,7 @@ setInterval(() => {
         if(now - c.lastSeen > 100000) {
             messages.push({
                 type: 'join',
-                username: `<span style="color: #ff4a4a;"> 🌏❌ ${c.username} ออกจากห้องแชทแล้ว</span>`,
+                username: `<span style="color: #ff4a4a;"> 🌏❌💨 ${c.username} ออกจากห้องแชทแล้ว</span>`,
                 time: Date.now()
             });
             clients.delete(id); 
@@ -451,7 +451,7 @@ setInterval(function(){
 function startPolling() {
     if (!joined) { setTimeout(startPolling, 500); return; }
     poll();
-    setTimeout(startPolling, 2000);
+    setTimeout(startPolling, 1000);
 }
 startPolling();
 
