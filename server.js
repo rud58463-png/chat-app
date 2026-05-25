@@ -8,26 +8,28 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const messages = [];
 const clients = new Map();
 
-// ระบบตรวจจับคนออกจากห้องแชท
+// 🔥 ระบบตรวจจับคนออกจากห้องแชทแบบ Real-time
 setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
-        if(now - c.lastSeen > 100000) {
+        // หากขาดการเชื่อมต่อ (Poll) เกิน 4 วินาที ให้คัดชื่อออกจากระบบทันที
+        if(now - c.lastSeen > 4000) {
             messages.push({
                 type: 'join',
-                username: `<span style="color: #ff4a4a;"> 🌏❌💨 ${c.username} ออกจากห้องแชทแล้ว</span>`,
+                username: `<span style="color: #ff4a4a;"> 🌏❌ ${c.username} ออกจากห้องแชทแล้ว</span>`,
                 time: Date.now()
             });
             clients.delete(id); 
         }
     }
-}, 60000);
+}, 2000); // เช็กสถานะบัดดี้ทุกๆ 2 วินาทีอัตโนมัติ
 
 app.post('/join', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id, username, profile } = req.body;
     if(!id || !username) return res.json({ ok: false });
     
+    // แจ้งเตือนเข้าห้องเฉพาะตอนที่ไม่มี ID นี้ในระบบจริงๆ เท่านั้น เพื่อกันข้อความเบิ้ล
     if (!clients.has(id)) {
         messages.push({ 
             type: 'join', 
@@ -56,6 +58,7 @@ app.post('/chat', (req, res) => {
     res.json({ ok: true });
 });
 
+// 👤 1. ฟังก์ชันดึงข้อมูลแชทและอัปเดตสถานะออนไลน์ปกติ (กู้คืนกลับมาให้แล้วครับ)
 app.get('/poll', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id, since } = req.query;
@@ -65,6 +68,22 @@ app.get('/poll', (req, res) => {
     const sinceTime = parseInt(since) || 0;
     const newMsgs = messages.filter(m => m.time > sinceTime);
     res.json({ online: clients.size, messages: newMsgs, serverTime: Date.now() });
+});
+
+// 🌏❌ 2. Route พิเศษสำหรับกดออกจากแอปแล้วลบชื่อทันที ไม่ต้องรอวินาทีค้าง (วางในจุดที่ถูกต้อง)
+app.post('/leave', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    const { id } = req.body;
+    if(clients.has(id)) {
+        const user = clients.get(id);
+        messages.push({
+            type: 'join',
+            username: `<span style="color: #ff4a4a;"> 🌏❌ ${user.username} ออกจากห้องแชทแล้ว</span>`,
+            time: Date.now()
+        });
+        clients.delete(id);
+    }
+    res.json({ ok: true });
 });
 
 app.get('/', (req, res) => 
@@ -254,6 +273,7 @@ var imgProfileElement = document.getElementById("myProfile");
 var params = new URLSearchParams(window.location.search);
 var appName = params.get("name");
 var joined = false;
+var isFirstJoinTriggered = false; 
 var myId = "id_" + Math.random().toString(36).slice(2);
 var myUsername = "";
 var myProfile = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
@@ -268,7 +288,8 @@ try {
         imgProfileElement.src = savedImg; 
     }
     
-    if(savedName) { 
+    if(savedName && !isFirstJoinTriggered) { 
+        isFirstJoinTriggered = true;
         document.getElementById("username").value = savedName; 
         setTimeout(function(){
             doJoin(savedName, myProfile);
@@ -281,7 +302,7 @@ function setStatus(msg){ document.getElementById("myName").innerHTML = msg; }
 function xhr(method, url, data, cb){
     var x = new XMLHttpRequest();
     x.open(method, url, true);
-    x.timeout = 8000; 
+    x.timeout = 5000; 
     if(method === "POST") x.setRequestHeader("Content-Type", "application/json");
     x.onreadystatechange = function(){
         if(x.readyState === 4){
@@ -300,7 +321,7 @@ function doJoin(username, profile){
     var timeout = setTimeout(function(){
         setStatus("⚠️ เชื่อมต่อ server ไม่ได้ ลองใหม่");
         document.getElementById("joinBox").style.display = "flex";
-    }, 8000);
+    }, 6000);
     
     xhr("POST", "/join", { id: myId, username: username, profile: myProfile }, function(data){
         clearTimeout(timeout);
@@ -318,13 +339,16 @@ function doJoin(username, profile){
             poll();
         } else {
             setStatus("⚠️ Join ไม่สำเร็จ ลองใหม่");
+            isFirstJoinTriggered = false; 
         }
     });
 }
 
 function joinChat(){
+    if(joined) return;
     var username = document.getElementById("username").value.trim();
     if(username === ""){ setStatus("⚠️ กรุณากรอกชื่อก่อน"); return; }
+    isFirstJoinTriggered = true;
     doJoin(username, myProfile);
 }
 
@@ -335,12 +359,13 @@ function sendMsg(){
     if(text === "") return;
     var tempText = text;
     msg.value = ""; 
+
     xhr("POST", "/chat", { id: myId, text: tempText }, function(res){
         if(!res || !res.ok) {
             msg.value = tempText; 
             setStatus("⚠️ ส่งข้อความไม่สำเร็จ ลองอีกครั้ง");
         } else {
-            poll(); 
+            // ดึงค่าอัปเดตผ่าน startPolling อัตโนมัติ ป้องกันข้อความเบิ้ล
         }
     });
 }
@@ -378,8 +403,8 @@ setInterval(function(){
         var wvs = window.AppInventor.getWebViewString();
         if(!wvs) return;
 
-        // 1. ตรวจจับการโหลดชื่อและรูปจาก TinyDB ตอนเปิดแอป
-        if(wvs.startsWith("LOAD_DATA|")){
+        if(wvs.startsWith("LOAD_DATA|") && !isFirstJoinTriggered){
+            isFirstJoinTriggered = true;
             var parts = wvs.split("|");
             var loadedName = parts[1];
             var loadedImg = parts[2];
@@ -399,7 +424,6 @@ setInterval(function(){
             return;
         }
 
-        // 2. ตรวจจับรูปภาพใหม่ที่ส่งมาจาก App Inventor (รองรับทุกไฟล์ + ย่อขนาดอัตโนมัติ)
         if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100){
             lastWVS = wvs;
             var base64Data = wvs;
@@ -407,13 +431,12 @@ setInterval(function(){
                 base64Data = "data:image/jpeg;base64," + base64Data; 
             }
 
-            // ใช้ Canvas ย่อขนาดรูปภาพในฝั่งหน้าเว็บเพื่อรองรับ PNG/JPG
             var img = new Image();
             img.src = base64Data;
             img.onload = function() {
                 var canvas = document.createElement('canvas');
                 var ctx = canvas.getContext('2d');
-                var MAX_WIDTH = 300; // บังคับรูปกว้างไม่เกิน 300px
+                var MAX_WIDTH = 300; 
                 var scaleSize = MAX_WIDTH / img.width;
                 
                 if(img.width > MAX_WIDTH) {
@@ -448,12 +471,28 @@ setInterval(function(){
     }catch(e){}
 }, 500);
 
+// 🔥 ความเร็ว Polling ฝั่ง Client
 function startPolling() {
-    if (!joined) { setTimeout(startPolling, 500); return; }
+    if (!joined) { 
+        setTimeout(startPolling, 500); 
+        return; 
+    }
     poll();
-    setTimeout(startPolling, 1000);
+    setTimeout(startPolling, 1500); 
 }
 startPolling();
+
+// 🚀 ระบบแจ้งเตือนออกจากระบบทันทีเมื่อปิดหน้าต่างเว็บ/แอปพลิเคชัน
+function disconnectFromServer() {
+    if (joined && myId) {
+        var x = new XMLHttpRequest();
+        x.open("POST", "/leave", false); // บังคับส่งแบบ Synchronous ก่อนแอปปิดตัวลง
+        x.setRequestHeader("Content-Type", "application/json");
+        x.send(JSON.stringify({ id: myId }));
+    }
+}
+window.addEventListener("beforeunload", disconnectFromServer);
+window.addEventListener("unload", disconnectFromServer);
 
 document.addEventListener("visibilitychange", function() {
     if (!document.hidden && joined) poll();
@@ -461,4 +500,5 @@ document.addEventListener("visibilitychange", function() {
 </script>       
 </body>
 </html>`));
+
 app.listen(3000, () => console.log('Server running on port 3000'));
