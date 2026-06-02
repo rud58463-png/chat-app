@@ -199,11 +199,6 @@ function connect(){
         }
 
         if(data.type === "message"){
-            
-            // --- ส่วนที่แก้ไข: ป้องกันไม่ให้เอาข้อความสถานะ เข้า/ออก ห้องแชท ย้อนหลังขึ้นมาแสดง ---
-            if (data.text.includes("เข้าห้องแชทแล้ว") || data.text.includes("ออกจากห้องแชทแล้ว")) {
-                return; // ข้ามข้อความนี้ไปเลย ไม่ต้องแสดงผลบนหน้าจอ
-            }
 
             chat.innerHTML +=
             `<div class="msg">${data.text}</div>`;
