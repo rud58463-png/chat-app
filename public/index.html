@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Chat Room</title>
 
@@ -57,12 +56,40 @@ h2{
     background:#181818;
 }
 
+/* ปรับแต่งกล่องข้อความให้รองรับการใส่เวลาทางขวา */
 .msg{
     background:#222;
     margin-bottom:8px;
     padding:10px;
     border-radius:10px;
     word-break:break-word;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 15px;
+}
+
+.msg-text {
+    flex: 1;
+}
+
+/* สไตล์ของเวลาปัจจุบัน (สีเทา ขนาดเล็ก อยู่มุมขวา) */
+.msg-time {
+    color: #888;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* สไตล์สำหรับข้อความระบบ เช่น แจ้งเตือนเข้าห้อง */
+.sys-msg {
+    background: #333;
+    margin: 8px auto;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    color: #4caf50;
+    text-align: center;
+    width: fit-content;
 }
 
 #bottomBar{
@@ -126,32 +153,32 @@ button{
 
 <script>
 
-const chat =
-document.getElementById("chat");
+const chat = document.getElementById("chat");
 
-const params =
-new URLSearchParams(
-window.location.search
-);
+const params = new URLSearchParams(window.location.search);
 
-const appName =
-params.get("name");
+const appName = params.get("name");
 
 let joined = false;
 let ws = null;
 
+// เก็บเวลาที่ผู้ใช้งานเปิดหน้าเว็บนี้ขึ้นมา เพื่อใช้กรองไม่เอาข้อมูลเก่าย้อนหลัง
+const pageLoadTime = Date.now();
+
+// ฟังก์ชันสร้างข้อความเวลาปัจจุบันในรูปแบบ HH:mm
+function getCurrentTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+}
+
 // เชื่อมต่อ websocket
 function connect(){
 
-    const protocol =
-    location.protocol === "https:"
-    ? "wss://"
-    : "ws://";
+    const protocol = location.protocol === "https:" ? "wss://" : "ws://";
 
-    ws =
-    new WebSocket(
-        protocol + location.host
-    );
+    ws = new WebSocket(protocol + location.host);
 
     ws.onopen = ()=>{
 
@@ -159,16 +186,12 @@ function connect(){
 
         joined = false;
 
-        let savedName =
-        appName;
+        let savedName = appName;
 
         // ถ้าเปิดจาก MIT App
         if(savedName){
 
-            document.getElementById(
-                "joinBox"
-            ).style.display =
-            "none";
+            document.getElementById("joinBox").style.display = "none";
 
             join(savedName);
 
@@ -178,33 +201,43 @@ function connect(){
 
     ws.onmessage = (event)=>{
 
-        const data =
-        JSON.parse(event.data);
+        const data = JSON.parse(event.data);
 
         if(data.type === "clear"){
-
+            // เคลียร์หน้าจอเฉพาะแชทที่แสดงอยู่ปัจจุบัน
             chat.innerHTML = "";
-
         }
 
         if(data.type === "online"){
 
-            document.getElementById(
-                "online"
-            ).innerHTML =
-            "👥 ออนไลน์: "
-            + data.count +
-            " คน";
+            document.getElementById("online").innerHTML =
+            "👥 ออนไลน์: " + data.count + " คน";
 
         }
 
         if(data.type === "message"){
 
-            chat.innerHTML +=
-            `<div class="msg">${data.text}</div>`;
+            // เช็คว่า Server ส่ง timestamp ย้อนหลังมาหรือไม่ 
+            // ถ้าเป็นข้อความเก่าที่มีเวลาก่อนหน้าเปิดเว็บ (หรือฝั่ง Server ส่งประวัติเก่ามา) ระบบจะไม่แสดงผลลงหน้าจอ
+            if (data.timestamp && data.timestamp < pageLoadTime) {
+                return; 
+            }
 
-            chat.scrollTop =
-            chat.scrollHeight;
+            // แยกการแสดงผล: หากเป็นข้อความแจ้งเตือนเข้าห้องแชท ให้ใช้สไตล์ระบบ
+            if(data.text.includes("เข้าห้องแชทแล้ว")) {
+                chat.innerHTML += `<div class="sys-msg">${data.text}</div>`;
+            } else {
+                // หากเป็นข้อความแชทปกติ ให้ใส่กล่องข้อความพร้อมเวลาปัจจุบันที่ได้รับแชทลงไปทางขวา
+                const timeStr = getCurrentTime();
+                chat.innerHTML += `
+                    <div class="msg">
+                        <div class="msg-text">${data.text}</div>
+                        <div class="msg-time">${timeStr}</div>
+                    </div>
+                `;
+            }
+
+            chat.scrollTop = chat.scrollHeight;
 
         }
 
@@ -214,15 +247,9 @@ function connect(){
 
         joined = false;
 
-        document.getElementById(
-            "myName"
-        ).innerHTML =
-        "⏳ กำลังเชื่อมต่อใหม่...";
+        document.getElementById("myName").innerHTML = "⏳ กำลังเชื่อมต่อใหม่...";
 
-        setTimeout(
-            connect,
-            2000
-        );
+        setTimeout(connect, 2000);
 
     };
 
@@ -234,41 +261,26 @@ function join(username){
 
     if(!ws) return;
 
-    if(
-        ws.readyState !==
-        WebSocket.OPEN
-    ){
+    if(ws.readyState !== WebSocket.OPEN){
         return;
     }
 
     if(joined) return;
 
-    username =
-    username.trim();
+    username = username.trim();
 
-    if(username === "")
-    return;
+    if(username === "") return;
 
-    document.getElementById(
-        "username"
-    ).value =
-    username;
+    document.getElementById("username").value = username;
 
-    document.getElementById(
-        "myName"
-    ).innerHTML =
-    "👤 ชื่อของคุณ: "
-    + username;
+    document.getElementById("myName").innerHTML = "👤 ชื่อของคุณ: " + username;
 
     ws.send(JSON.stringify({
         type:"join",
         username:username
     }));
 
-    document.getElementById(
-        "joinBox"
-    ).style.display =
-    "none";
+    document.getElementById("joinBox").style.display = "none";
 
     joined = true;
 }
@@ -276,10 +288,7 @@ function join(username){
 // ปุ่ม Join
 function joinChat(){
 
-    const username =
-    document.getElementById(
-        "username"
-    ).value;
+    const username = document.getElementById("username").value;
 
     join(username);
 }
@@ -289,44 +298,32 @@ function sendMsg(){
 
     if(!joined) return;
 
-    if(
-        !ws ||
-        ws.readyState !==
-        WebSocket.OPEN
-    ) return;
+    if(!ws || ws.readyState !== WebSocket.OPEN) return;
 
-    const msg =
-    document.getElementById(
-        "msg"
-    );
+    const msg = document.getElementById("msg");
 
-    const text =
-    msg.value.trim();
+    const text = msg.value.trim();
 
-    if(text === "")
-    return;
+    if(text === "") return;
 
+    // ส่งข้อความไปที่ Server พร้อมแนบ timestamp ปัจจุบันไปด้วย
     ws.send(JSON.stringify({
         type:"chat",
-        text:text
+        text:text,
+        timestamp: Date.now()
     }));
 
     msg.value = "";
 }
 
 // Enter ส่งข้อความ
-document.getElementById(
-    "msg"
-).addEventListener(
-    "keypress",
-    (e)=>{
+document.getElementById("msg").addEventListener("keypress", (e)=>{
 
-        if(e.key==="Enter"){
-            sendMsg();
-        }
-
+    if(e.key==="Enter"){
+        sendMsg();
     }
-);
+
+});
 
 // เริ่มระบบ
 connect();
