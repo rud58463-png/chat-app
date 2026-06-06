@@ -2,17 +2,10 @@
 <html>
 <head>
 <meta charset="UTF-8">
-
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chat Room</title>
-
 <style>
-
-*{
-    box-sizing:border-box;
-}
+*{ box-sizing:border-box; }
 
 body{
     margin:0;
@@ -22,8 +15,8 @@ body{
     display:flex;
     flex-direction:column;
     height:100vh;
-    overflow: hidden;
-    width: 100%;
+    overflow:hidden;
+    width:100%;
 }
 
 header{
@@ -32,12 +25,9 @@ header{
     border-bottom:1px solid #333;
 }
 
-h2{
-    margin:0;
-}
+h2{ margin:0; }
 
-#online,
-#myName{
+#online, #myName{
     margin-top:8px;
     font-size:16px;
 }
@@ -48,9 +38,7 @@ h2{
     gap:10px;
 }
 
-#joinBox input{
-    flex:1;
-}
+#joinBox input{ flex:1; }
 
 #chat{
     flex:1;
@@ -67,16 +55,23 @@ h2{
     word-break:break-word;
 }
 
+.msgTime{
+    font-size:11px;
+    color:#888;
+    text-align:right;
+    margin-top:4px;
+}
+
 #bottomBar{
     display:flex;
     gap:10px;
     padding:12px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom)); /* ✅ รองรับ iPhone มี notch/home bar */
-    border-top: 1px solid #333;
-    background: #1b1b1b;
-    width: 100%;
-    box-sizing: border-box;
-    align-items: center;
+    padding-bottom:max(12px, env(safe-area-inset-bottom));
+    border-top:1px solid #333;
+    background:#1b1b1b;
+    width:100%;
+    box-sizing:border-box;
+    align-items:center;
 }
 
 input{
@@ -93,250 +88,141 @@ button{
     padding:14px 20px;
     font-size:16px;
     cursor:pointer;
+    flex-shrink:0;
 }
 
-#msg {
-    flex: 1;
-    min-width: 0;           /* ✅ สำคัญมาก ป้องกันล้นกรอบ */
-    box-sizing: border-box;
+#msg{
+    flex:1;
+    min-width:0;
+    box-sizing:border-box;
 }
-
 </style>
 </head>
 
 <body>
 
 <header>
-
-<h2>💬 ห้องแชทรวม</h2>
-
-<div id="online">
-👥 ออนไลน์: 0 คน
-</div>
-
-<div id="myName">
-👤 ชื่อของคุณ: ยังไม่ได้ Join
-</div>
-
+    <h2>💬 ห้องแชทรวม</h2>
+    <div id="online">👥 ออนไลน์: 0 คน</div>
+    <div id="myName">👤 ชื่อของคุณ: ยังไม่ได้ Join</div>
 </header>
 
 <div id="joinBox">
-<input id="username" placeholder="ตั้งชื่อ">
-<button onclick="joinChat()">Join</button>
+    <input id="username" placeholder="ตั้งชื่อ">
+    <button onclick="joinChat()">Join</button>
 </div>
 
 <div id="chat"></div>
 
 <div id="bottomBar">
-<input id="msg" placeholder="พิมพ์ข้อความ">
-<button onclick="sendMsg()">ส่ง</button>
+    <input id="msg" placeholder="พิมพ์ข้อความ">
+    <button onclick="sendMsg()">ส่ง</button>
 </div>
 
 <script>
 
-const chat =
-document.getElementById("chat");
-
-const params =
-new URLSearchParams(
-window.location.search
-);
-
-const appName =
-params.get("name");
+const chat = document.getElementById("chat");
+const params = new URLSearchParams(window.location.search);
+const appName = params.get("name");
 
 let joined = false;
 let ws = null;
 
-// เชื่อมต่อ websocket
 function connect(){
 
-    const protocol =
-    location.protocol === "https:"
-    ? "wss://"
-    : "ws://";
-
-    ws =
-    new WebSocket(
-        protocol + location.host
-    );
+    const protocol = location.protocol === "https:" ? "wss://" : "ws://";
+    ws = new WebSocket(protocol + location.host);
 
     ws.onopen = ()=>{
-
         console.log("connected");
-
         joined = false;
-
-        let savedName =
-        appName;
-
-        // ถ้าเปิดจาก MIT App
+        let savedName = appName;
         if(savedName){
-
-            document.getElementById(
-                "joinBox"
-            ).style.display =
-            "none";
-
+            document.getElementById("joinBox").style.display = "none";
             join(savedName);
-
         }
-
     };
 
     ws.onmessage = (event)=>{
-
-        const data =
-        JSON.parse(event.data);
+        const data = JSON.parse(event.data);
 
         if(data.type === "clear"){
-
             chat.innerHTML = "";
-
         }
 
         if(data.type === "online"){
-
-            document.getElementById(
-                "online"
-            ).innerHTML =
-            "👥 ออนไลน์: "
-            + data.count +
-            " คน";
-
+            document.getElementById("online").innerHTML =
+            "👥 ออนไลน์: " + data.count + " คน";
         }
 
         if(data.type === "message"){
+            const now = new Date();
+            const time = now.toLocaleString("th-TH", {
+                hour: "2-digit",
+                minute: "2-digit",
+                day: "2-digit",
+                month: "2-digit",
+                year: "2-digit"
+            });
 
+            // ✅ แก้แล้ว มี backtick ครบ
             chat.innerHTML +=
-            `<div class="msg">${data.text}</div>`;
+            `<div class="msg">
+                ${data.text}
+                <div class="msgTime">${time}</div>
+            </div>`;
 
-            chat.scrollTop =
-            chat.scrollHeight;
-
+            chat.scrollTop = chat.scrollHeight;
         }
-
     };
 
+    // ✅ แก้แล้ว ย้าย onclose ออกมาอยู่ระดับเดียวกับ onopen
     ws.onclose = ()=>{
-
         joined = false;
-
-        document.getElementById(
-            "myName"
-        ).innerHTML =
-        "⏳ กำลังเชื่อมต่อใหม่...";
-
-        setTimeout(
-            connect,
-            2000
-        );
-
+        document.getElementById("myName").innerHTML = "⏳ กำลังเชื่อมต่อใหม่...";
+        setTimeout(connect, 2000);
     };
 
     ws.onerror = ()=>{};
 }
 
-// join ห้อง
 function join(username){
-
     if(!ws) return;
-
-    if(
-        ws.readyState !==
-        WebSocket.OPEN
-    ){
-        return;
-    }
-
+    if(ws.readyState !== WebSocket.OPEN) return;
     if(joined) return;
 
-    username =
-    username.trim();
+    username = username.trim();
+    if(username === "") return;
 
-    if(username === "")
-    return;
+    document.getElementById("username").value = username;
+    document.getElementById("myName").innerHTML = "👤 ชื่อของคุณ: " + username;
 
-    document.getElementById(
-        "username"
-    ).value =
-    username;
-
-    document.getElementById(
-        "myName"
-    ).innerHTML =
-    "👤 ชื่อของคุณ: "
-    + username;
-
-    ws.send(JSON.stringify({
-        type:"join",
-        username:username
-    }));
-
-    document.getElementById(
-        "joinBox"
-    ).style.display =
-    "none";
-
+    ws.send(JSON.stringify({ type:"join", username:username }));
+    document.getElementById("joinBox").style.display = "none";
     joined = true;
 }
 
-// ปุ่ม Join
 function joinChat(){
-
-    const username =
-    document.getElementById(
-        "username"
-    ).value;
-
+    const username = document.getElementById("username").value;
     join(username);
 }
 
-// ส่งข้อความ
 function sendMsg(){
-
     if(!joined) return;
+    if(!ws || ws.readyState !== WebSocket.OPEN) return;
 
-    if(
-        !ws ||
-        ws.readyState !==
-        WebSocket.OPEN
-    ) return;
+    const msg = document.getElementById("msg");
+    const text = msg.value.trim();
+    if(text === "") return;
 
-    const msg =
-    document.getElementById(
-        "msg"
-    );
-
-    const text =
-    msg.value.trim();
-
-    if(text === "")
-    return;
-
-    ws.send(JSON.stringify({
-        type:"chat",
-        text:text
-    }));
-
+    ws.send(JSON.stringify({ type:"chat", text:text }));
     msg.value = "";
 }
 
-// Enter ส่งข้อความ
-document.getElementById(
-    "msg"
-).addEventListener(
-    "keypress",
-    (e)=>{
+document.getElementById("msg").addEventListener("keypress", (e)=>{
+    if(e.key === "Enter"){ sendMsg(); }
+});
 
-        if(e.key==="Enter"){
-            sendMsg();
-        }
-
-    }
-);
-
-// เริ่มระบบ
 connect();
 
 </script>
