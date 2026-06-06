@@ -22,6 +22,8 @@ body{
     display:flex;
     flex-direction:column;
     height:100vh;
+    overflow: hidden;
+    width: 100%;
 }
 
 header{
@@ -69,8 +71,12 @@ h2{
     display:flex;
     gap:10px;
     padding:12px;
-    border-top:1px solid #333;
-    background:#1b1b1b;
+    padding-bottom: max(12px, env(safe-area-inset-bottom)); /* ✅ รองรับ iPhone มี notch/home bar */
+    border-top: 1px solid #333;
+    background: #1b1b1b;
+    width: 100%;
+    box-sizing: border-box;
+    align-items: center;
 }
 
 input{
@@ -89,8 +95,10 @@ button{
     cursor:pointer;
 }
 
-#msg{
-    flex:1;
+#msg {
+    flex: 1;
+    min-width: 0;           /* ✅ สำคัญมาก ป้องกันล้นกรอบ */
+    box-sizing: border-box;
 }
 
 </style>
