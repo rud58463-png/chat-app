@@ -120,7 +120,6 @@ button{
 </div>
 
 <script>
-
 const chat = document.getElementById("chat");
 const params = new URLSearchParams(window.location.search);
 const appName = params.get("name");
@@ -129,17 +128,15 @@ let joined = false;
 let ws = null;
 
 function connect(){
-
     const protocol = location.protocol === "https:" ? "wss://" : "ws://";
     ws = new WebSocket(protocol + location.host);
 
     ws.onopen = ()=>{
         console.log("connected");
-        joined = false;
-        let savedName = appName;
-        if(savedName){
+        // ถ้ามีชื่อส่งมาจาก URL และเรายังไม่เคยเข้าร่วมห้องแชท ให้ลงทะเบียนออโต้เพียงครั้งเดียว
+        if(appName && !joined){
             document.getElementById("joinBox").style.display = "none";
-            join(savedName);
+            join(appName);
         }
     };
 
@@ -151,8 +148,7 @@ function connect(){
         }
 
         if(data.type === "online"){
-            document.getElementById("online").innerHTML =
-            "👥 ออนไลน์: " + data.count + " คน";
+            document.getElementById("online").innerHTML = "👥 ออนไลน์: " + data.count + " คน";
         }
 
         if(data.type === "message"){
@@ -165,9 +161,8 @@ function connect(){
                 year: "2-digit"
             });
 
-            // ✅ แก้แล้ว มี backtick ครบ
-            chat.innerHTML +=
-            `<div class="msg">
+             chat.innerHTML +=
+             `<div class="msg">
                 ${data.text}
                 <div class="msgTime">${time}</div>
             </div>`;
@@ -176,7 +171,6 @@ function connect(){
         }
     };
 
-    // ✅ แก้แล้ว ย้าย onclose ออกมาอยู่ระดับเดียวกับ onopen
     ws.onclose = ()=>{
         joined = false;
         document.getElementById("myName").innerHTML = "⏳ กำลังเชื่อมต่อใหม่...";
@@ -187,9 +181,8 @@ function connect(){
 }
 
 function join(username){
-    if(!ws) return;
-    if(ws.readyState !== WebSocket.OPEN) return;
-    if(joined) return;
+    if(!ws || ws.readyState !== WebSocket.OPEN) return;
+    if(joined) return; // ล็อกระบบไว้ถ้าลงทะเบียนสำเร็จแล้ว ห้ามส่งซ้ำอีกรอบ
 
     username = username.trim();
     if(username === "") return;
@@ -208,8 +201,7 @@ function joinChat(){
 }
 
 function sendMsg(){
-    if(!joined) return;
-    if(!ws || ws.readyState !== WebSocket.OPEN) return;
+    if(!joined || !ws || ws.readyState !== WebSocket.OPEN) return;
 
     const msg = document.getElementById("msg");
     const text = msg.value.trim();
@@ -223,8 +215,8 @@ document.getElementById("msg").addEventListener("keypress", (e)=>{
     if(e.key === "Enter"){ sendMsg(); }
 });
 
+// เริ่มต้นระบบเชื่อมต่อ
 connect();
-
 </script>
 
 </body>
