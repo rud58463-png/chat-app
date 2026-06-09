@@ -128,12 +128,16 @@ let joined = false;
 let ws = null;
 
 function connect(){
+
+    if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
+        return;
+    }
     const protocol = location.protocol === "https:" ? "wss://" : "ws://";
     ws = new WebSocket(protocol + location.host);
 
     ws.onopen = ()=>{
         console.log("connected");
-        // ถ้ามีชื่อส่งมาจาก URL และเรายังไม่เคยเข้าร่วมห้องแชท ให้ลงทะเบียนออโต้เพียงครั้งเดียว
+        
         if(appName && !joined){
             document.getElementById("joinBox").style.display = "none";
             join(appName);
@@ -174,6 +178,8 @@ function connect(){
     ws.onclose = ()=>{
         joined = false;
         document.getElementById("myName").innerHTML = "⏳ กำลังเชื่อมต่อใหม่...";
+        
+        ws = null; 
         setTimeout(connect, 2000);
     };
 
