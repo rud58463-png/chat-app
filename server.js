@@ -8,6 +8,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const messages = [];
 const clients = new Map();
 
+// 💡 1. สร้างตัวแปรเก็บรายชื่อคนที่อยู่ในห้องแชทปัจจุบันไว้ด้านบนสุด (ตามไฟล์ที่แนบ )
+const joinedUsers = new Set();
+
 // 🔥 ระบบตรวจจับคนออกจากห้องแชทแบบ Real-time
 setInterval(() => {
     const now = Date.now();
@@ -19,6 +22,10 @@ setInterval(() => {
                 username: `<span style="color: #ff4a4a;"> 🌏❌ ${c.username} ออกจากห้องแชทแล้ว</span>`,
                 time: Date.now()
             });
+
+            // 💡 ตอนคนนั้นกดปิดแอป หรือเน็ตหลุด ให้ลบชื่อออกจากระบบด้วย (ตามไฟล์ที่แนบ )
+            joinedUsers.delete(c.username);
+
             clients.delete(id); 
         }
     }
@@ -29,18 +36,25 @@ app.post('/join', (req, res) => {
     const { id, username, profile } = req.body;
     if(!id || !username) return res.json({ ok: false });
     
-    // แจ้งเตือนเข้าห้องเฉพาะตอนที่ไม่มี ID นี้ในระบบจริงๆ เท่านั้น เพื่อกันข้อความเบิ้ล
-    if (!clients.has(id)) {
+    // 💡 ดึงการ .trim() ชื่อตามไฟล์ที่แนบ 
+    const trimmedUsername = username.trim();
+
+    // 💡 เพิ่มเช็คตรงนี้: ถ้าชื่อนี้และ ID นี้ยังไม่ได้อยู่ในระบบแชทจริงๆ "ไม่ต้องส่งข้อความซ้ำ" (ตามไฟล์ที่แนบ )
+    if (!clients.has(id) && !joinedUsers.has(trimmedUsername)) {
+        
+        // บันทึกชื่อลงระบบ Set (ตามไฟล์ที่แนบ )
+        joinedUsers.add(trimmedUsername);
+
         messages.push({ 
             type: 'join', 
-            username: `<span style="color: #2ed573;"> 🌏✔️ ${username} เข้าห้องแชทแล้ว</span>`, 
+            username: `<span style="color: #2ed573;"> 🌏✔️ ${trimmedUsername} เข้าห้องแชทแล้ว</span>`, 
             time: Date.now() 
         });
     }
 
     if(messages.length > 200) messages.shift();
     
-    clients.set(id, { username, profile: profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', lastSeen: Date.now() });
+    clients.set(id, { username: trimmedUsername, profile: profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', lastSeen: Date.now() });
     res.json({ ok: true });
 });
 
@@ -81,6 +95,10 @@ app.post('/leave', (req, res) => {
             username: `<span style="color: #ff4a4a;"> 🌏❌ ${user.username} ออกจากห้องแชทแล้ว</span>`,
             time: Date.now()
         });
+
+        // 💡 ลบชื่อออกจากระบบ Set ด้วยเมื่อผู้ใช้กด Leave ออกไปเอง (ตามไฟล์ที่แนบ )
+        joinedUsers.delete(user.username);
+
         clients.delete(id);
     }
     res.json({ ok: true });
