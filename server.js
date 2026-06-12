@@ -1,55 +1,35 @@
 const express = require('express');
 const app = express();
 
-// ขยายขนาดการรับส่งรูปภาพผ่าน Base64 ให้ลื่นไหล ไม่หลุดบ่อย
 app.use(express.json({ limit: "50mb" })); 
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 const messages = [];
 const clients = new Map();
-
-// 💡 1. สร้างตัวแปรเก็บรายชื่อคนที่อยู่ในห้องแชทปัจจุบันไว้ด้านบนสุด (ตามไฟล์ที่แนบ )
 const joinedUsers = new Set();
 
-// 🔥 ระบบตรวจจับคนออกจากห้องแชทแบบ Real-time
+// ระบบตรวจจับคนออกจากห้องแชทแบบ Real-time
 setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
-        // หากขาดการเชื่อมต่อ (Poll) เกิน 4 วินาที ให้คัดชื่อออกจากระบบทันที
         if(now - c.lastSeen > 4000) {
-            messages.push({
-                type: 'join',
-                username: `<span style="color: #ff4a4a;"> 🌏❌ ${c.username} ออกจากห้องแชทแล้ว</span>`,
-                time: Date.now()
-            });
-
-            // 💡 ตอนคนนั้นกดปิดแอป หรือเน็ตหลุด ให้ลบชื่อออกจากระบบด้วย (ตามไฟล์ที่แนบ )
+            // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
             joinedUsers.delete(c.username);
-
             clients.delete(id); 
         }
     }
-}, 2000); // เช็กสถานะบัดดี้ทุกๆ 2 วินาทีอัตโนมัติ
+}, 2000);
 
 app.post('/join', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id, username, profile } = req.body;
     if(!id || !username) return res.json({ ok: false });
     
-    // 💡 ดึงการ .trim() ชื่อตามไฟล์ที่แนบ 
     const trimmedUsername = username.trim();
 
-    // 💡 เพิ่มเช็คตรงนี้: ถ้าชื่อนี้และ ID นี้ยังไม่ได้อยู่ในระบบแชทจริงๆ "ไม่ต้องส่งข้อความซ้ำ" (ตามไฟล์ที่แนบ )
     if (!clients.has(id) && !joinedUsers.has(trimmedUsername)) {
-        
-        // บันทึกชื่อลงระบบ Set (ตามไฟล์ที่แนบ )
         joinedUsers.add(trimmedUsername);
-
-        messages.push({ 
-            type: 'join', 
-            username: `<span style="color: #2ed573;"> 🌏✔️ ${trimmedUsername} เข้าห้องแชทแล้ว</span>`, 
-            time: Date.now() 
-        });
+        // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
     }
 
     if(messages.length > 200) messages.shift();
@@ -72,7 +52,6 @@ app.post('/chat', (req, res) => {
     res.json({ ok: true });
 });
 
-// 👤 1. ฟังก์ชันดึงข้อมูลแชทและอัปเดตสถานะออนไลน์ปกติ (กู้คืนกลับมาให้แล้วครับ)
 app.get('/poll', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id, since } = req.query;
@@ -84,21 +63,13 @@ app.get('/poll', (req, res) => {
     res.json({ online: clients.size, messages: newMsgs, serverTime: Date.now() });
 });
 
-// 🌏❌ 2. Route พิเศษสำหรับกดออกจากแอปแล้วลบชื่อทันที ไม่ต้องรอวินาทีค้าง (วางในจุดที่ถูกต้อง)
 app.post('/leave', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id } = req.body;
     if(clients.has(id)) {
         const user = clients.get(id);
-        messages.push({
-            type: 'join',
-            username: `<span style="color: #ff4a4a;"> 🌏❌ ${user.username} ออกจากห้องแชทแล้ว</span>`,
-            time: Date.now()
-        });
-
-        // 💡 ลบชื่อออกจากระบบ Set ด้วยเมื่อผู้ใช้กด Leave ออกไปเอง (ตามไฟล์ที่แนบ )
+        // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
         joinedUsers.delete(user.username);
-
         clients.delete(id);
     }
     res.json({ ok: true });
@@ -123,7 +94,6 @@ app.get('/', (req, res) =>
     height: 100vh; 
     overflow: hidden; 
   }
-  
   header { 
     background: #16171e; 
     padding: 14px 16px; 
@@ -139,130 +109,59 @@ app.get('/', (req, res) =>
   h2 { margin: 0; font-size: 18px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px; }
   #online { font-size: 12px; color: #a4b0be; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
   #myName { font-size: 12px; color: #747d8c; margin-top: 2px; }
-  
   #myProfile { 
-    width: 48px; 
-    height: 48px; 
-    border-radius: 50%; 
-    object-fit: cover; 
-    border: 2px solid #0056ff; 
-    cursor: pointer; 
-    background: #1e202c; 
+    width: 48px; height: 48px; border-radius: 50%; object-fit: cover; 
+    border: 2px solid #0056ff; cursor: pointer; background: #1e202c; 
     transition: transform 0.2s, border-color 0.2s;
     box-shadow: 0 0 10px rgba(0, 86, 255, 0.2);
   }
   #myProfile:active { transform: scale(0.95); border-color: #00a2ff; }
-
   #joinBox { 
-    margin-top: 12px; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 8px; 
-    background: #1e202c;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid #2d3043;
+    margin-top: 12px; display: flex; flex-direction: column; gap: 8px; 
+    background: #1e202c; padding: 12px; border-radius: 12px; border: 1px solid #2d3043;
   }
   #joinBox input[type="text"] { 
-    width: 100%; 
-    border: 1px solid #2d3043; 
-    outline: none; 
-    border-radius: 8px; 
-    padding: 10px 12px; 
-    font-size: 14px; 
-    background: #12131a; 
-    color: white; 
-    transition: border-color 0.2s;
+    width: 100%; border: 1px solid #2d3043; outline: none; border-radius: 8px; 
+    padding: 10px 12px; font-size: 14px; background: #12131a; color: white; transition: border-color 0.2s;
   }
   #joinBox input[type="text"]:focus { border-color: #0056ff; }
   #joinBtn { 
-    width: 100%; 
-    border: none; 
-    border-radius: 8px; 
-    padding: 11px; 
-    font-size: 14px; 
-    cursor: pointer; 
-    background: #0056ff; 
-    color: white; 
-    font-weight: bold; 
-    transition: background 0.2s;
+    width: 100%; border: none; border-radius: 8px; padding: 11px; font-size: 14px; 
+    cursor: pointer; background: #0056ff; color: white; font-weight: bold; transition: background 0.2s;
   }
   #joinBtn:active { background: #0041c2; }
-
-  #chat { 
-    flex: 1; 
-    overflow-y: auto; 
-    padding: 16px; 
-    background: #0d0e12; 
-    scroll-behavior: smooth;
-  }
-  
+  #chat { flex: 1; overflow-y: auto; padding: 16px; background: #0d0e12; scroll-behavior: smooth; }
   .msg { 
-    background: #16171e; 
-    margin-bottom: 12px; 
-    padding: 12px; 
-    border-radius: 14px; 
-    border: 1px solid #1f212c; 
-    max-width: 90%;
-    animation: fadeIn 0.2s ease-out;
+    background: #16171e; margin-bottom: 12px; padding: 12px; border-radius: 14px; 
+    border: 1px solid #1f212c; max-width: 90%; animation: fadeIn 0.2s ease-out;
   }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-  
   .messageRow { display: flex; gap: 10px; align-items: flex-start; }
   .profileImg { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: #1e202c; border: 1px solid #2d3043; }
   .messageContent { flex: 1; word-break: break-all; }
   .messageName { font-weight: 600; color: #54a0ff; margin-bottom: 3px; font-size: 13px; }
   .messageText { font-size: 14px; color: #e1e2eb; line-height: 1.4; }
-  
   .joinMsg { 
-    text-align: center; 
-    font-size: 12px; 
-    padding: 6px 12px; 
-    background: #16171e; 
-    margin: 10px auto; 
-    border-radius: 20px; 
-    border: 1px solid #232530; 
-    font-weight: 500;
-    max-width: fit-content;
+    text-align: center; font-size: 12px; padding: 6px 12px; background: #16171e; 
+    margin: 10px auto; border-radius: 20px; border: 1px solid #232530; font-weight: 500; max-width: fit-content;
   }
-
   #bottomBar { 
-    display: flex; 
-    gap: 8px; 
-    padding: 12px 16px; 
-    border-top: 1px solid #232530; 
-    background: #16171e; 
-    flex-shrink: 0; 
-    box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+    display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #232530; 
+    background: #16171e; flex-shrink: 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
   }
   #msg { 
-    flex: 1; 
-    border: 1px solid #2d3043; 
-    outline: none; 
-    border-radius: 24px; 
-    padding: 10px 16px; 
-    font-size: 14px; 
-    background: #0d0e12; 
-    color: white; 
-    transition: border-color 0.2s;
+    flex: 1; border: 1px solid #2d3043; outline: none; border-radius: 24px; 
+    padding: 10px 16px; font-size: 14px; background: #0d0e12; color: white; transition: border-color 0.2s;
   }
   #msg:focus { border-color: #0056ff; }
   #sendBtn { 
-    border: none; 
-    border-radius: 24px; 
-    padding: 10px 20px; 
-    font-size: 14px; 
-    cursor: pointer; 
-    background: #0056ff; 
-    color: #fff; 
-    font-weight: bold; 
-    transition: background 0.2s;
+    border: none; border-radius: 24px; padding: 10px 20px; font-size: 14px; 
+    cursor: pointer; background: #0056ff; color: #fff; font-weight: bold; transition: background 0.2s;
   }
   #sendBtn:active { background: #0041c2; }
 </style>
 </head>
 <body>
-
 <header>
   <div class="header-top">
     <div>
@@ -300,18 +199,11 @@ var lastTime = Date.now() - 30000;
 try {
     var savedName = localStorage.getItem("savedUsername");
     var savedImg = localStorage.getItem("profileImage");
-    
-    if(savedImg) { 
-        myProfile = savedImg; 
-        imgProfileElement.src = savedImg; 
-    }
-    
+    if(savedImg) { myProfile = savedImg; imgProfileElement.src = savedImg; }
     if(savedName && !isFirstJoinTriggered) { 
         isFirstJoinTriggered = true;
         document.getElementById("username").value = savedName; 
-        setTimeout(function(){
-            doJoin(savedName, myProfile);
-        }, 500);
+        setTimeout(function(){ doJoin(savedName, myProfile); }, 500);
     }
 } catch(e){}
 
@@ -323,9 +215,7 @@ function xhr(method, url, data, cb){
     x.timeout = 5000; 
     if(method === "POST") x.setRequestHeader("Content-Type", "application/json");
     x.onreadystatechange = function(){
-        if(x.readyState === 4){
-            try{ cb(JSON.parse(x.responseText)); }catch(e){ cb(null); }
-        }
+        if(x.readyState === 4){ try{ cb(JSON.parse(x.responseText)); }catch(e){ cb(null); } }
     };
     x.onerror = function(){ cb(null); };
     x.ontimeout = function(){ cb(null); };
@@ -340,19 +230,14 @@ function doJoin(username, profile){
         setStatus("⚠️ เชื่อมต่อ server ไม่ได้ ลองใหม่");
         document.getElementById("joinBox").style.display = "flex";
     }, 6000);
-    
     xhr("POST", "/join", { id: myId, username: username, profile: myProfile }, function(data){
         clearTimeout(timeout);
         if(data && data.ok){
             joined = true;
             setStatus("👤 ชื่อของคุณ: " + username);
             imgProfileElement.src = myProfile;
-            try {
-                localStorage.setItem("savedUsername", myUsername);
-                localStorage.setItem("profileImage", myProfile);
-            } catch(e){}
+            try { localStorage.setItem("savedUsername", myUsername); localStorage.setItem("profileImage", myProfile); } catch(e){}
             try { window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + myProfile); } catch(e){}
-
             document.getElementById("joinBox").style.display = "none";
             poll();
         } else {
@@ -377,14 +262,8 @@ function sendMsg(){
     if(text === "") return;
     var tempText = text;
     msg.value = ""; 
-
     xhr("POST", "/chat", { id: myId, text: tempText }, function(res){
-        if(!res || !res.ok) {
-            msg.value = tempText; 
-            setStatus("⚠️ ส่งข้อความไม่สำเร็จ ลองอีกครั้ง");
-        } else {
-            // ดึงค่าอัปเดตผ่าน startPolling อัตโนมัติ ป้องกันข้อความเบิ้ล
-        }
+        if(!res || !res.ok) { msg.value = tempText; setStatus("⚠️ ส่งข้อความไม่สำเร็จ ลองอีกครั้ง"); }
     });
 }
 
@@ -420,35 +299,21 @@ setInterval(function(){
     try{
         var wvs = window.AppInventor.getWebViewString();
         if(!wvs) return;
-
         if(wvs.startsWith("LOAD_DATA|") && !isFirstJoinTriggered){
             isFirstJoinTriggered = true;
             var parts = wvs.split("|");
             var loadedName = parts[1];
             var loadedImg = parts[2];
-            
-            if(loadedName) {
-                document.getElementById("username").value = loadedName;
-                myUsername = loadedName;
-            }
-            if(loadedImg && loadedImg !== "undefined") {
-                myProfile = loadedImg;
-                imgProfileElement.src = loadedImg;
-            }
-            if(loadedName) {
-                doJoin(loadedName, myProfile);
-            }
+            if(loadedName) { document.getElementById("username").value = loadedName; myUsername = loadedName; }
+            if(loadedImg && loadedImg !== "undefined") { myProfile = loadedImg; imgProfileElement.src = loadedImg; }
+            if(loadedName) { doJoin(loadedName, myProfile); }
             try{ window.AppInventor.setWebViewString(""); }catch(err){} 
             return;
         }
-
         if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100){
             lastWVS = wvs;
             var base64Data = wvs;
-            if (!base64Data.startsWith("data:image")) { 
-                base64Data = "data:image/jpeg;base64," + base64Data; 
-            }
-
+            if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
             var img = new Image();
             img.src = base64Data;
             img.onload = function() {
@@ -456,28 +321,17 @@ setInterval(function(){
                 var ctx = canvas.getContext('2d');
                 var MAX_WIDTH = 300; 
                 var scaleSize = MAX_WIDTH / img.width;
-                
-                if(img.width > MAX_WIDTH) {
-                    canvas.width = MAX_WIDTH;
-                    canvas.height = img.height * scaleSize;
-                } else {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                }
-
+                if(img.width > MAX_WIDTH) { canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize; } 
+                else { canvas.width = img.width; canvas.height = img.height; }
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 var resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-
                 myProfile = resizedBase64;
                 imgProfileElement.src = resizedBase64;
-
                 document.querySelectorAll(".profileImg").forEach(function(el){
                     if(el.getAttribute("data-user") === myUsername){ el.src = resizedBase64; }
                 });
-
                 try{ localStorage.setItem("profileImage", resizedBase64); }catch(e){}
                 try{ window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + resizedBase64); }catch(e){}
-
                 if(joined){
                     xhr("POST", "/join", { id: myId, username: myUsername, profile: resizedBase64 }, function(){
                         setStatus("👤 ชื่อของคุณ: " + myUsername + " (อัปเดตรูปแล้ว)");
@@ -489,22 +343,17 @@ setInterval(function(){
     }catch(e){}
 }, 500);
 
-// 🔥 ความเร็ว Polling ฝั่ง Client
 function startPolling() {
-    if (!joined) { 
-        setTimeout(startPolling, 500); 
-        return; 
-    }
+    if (!joined) { setTimeout(startPolling, 500); return; }
     poll();
     setTimeout(startPolling, 1500); 
 }
 startPolling();
 
-// 🚀 ระบบแจ้งเตือนออกจากระบบทันทีเมื่อปิดหน้าต่างเว็บ/แอปพลิเคชัน
 function disconnectFromServer() {
     if (joined && myId) {
         var x = new XMLHttpRequest();
-        x.open("POST", "/leave", false); // บังคับส่งแบบ Synchronous ก่อนแอปปิดตัวลง
+        x.open("POST", "/leave", false);
         x.setRequestHeader("Content-Type", "application/json");
         x.send(JSON.stringify({ id: myId }));
     }
