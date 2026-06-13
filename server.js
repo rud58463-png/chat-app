@@ -28,7 +28,7 @@ app.post('/join', (req, res) => {
     const trimmedUsername = username.trim();
 
     // 🔒 บล็อกถ้าห้องเต็ม 38 คน
-    if (!clients.has(id) && clients.size >= 38) {
+    if (!clients.has(id) && !joinedUsers.has(trimmedUsername) && joinedUsers.size >= 2) {
         return res.json({ ok: false, reason: 'full' });
     }
 
