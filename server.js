@@ -28,7 +28,7 @@ app.post('/join', (req, res) => {
     const trimmedUsername = username.trim();
 
     // 🔒 บล็อกถ้าห้องเต็ม 38 คน
-    if (!clients.has(id) && !joinedUsers.has(trimmedUsername) && joinedUsers.size >= 2) {
+    if (!clients.has(id) && !joinedUsers.has(trimmedUsername) && joinedUsers.size >= 28) {
         return res.json({ ok: false, reason: 'full' });
     }
 
@@ -245,7 +245,7 @@ function doJoin(username, profile){
             document.getElementById("joinBox").style.display = "none";
             poll();
         } else if(data && data.reason === 'full') {
-            setStatus("🚫 ห้องแชทเต็มแล้ว! (2/2 คน)");
+            setStatus("🚫 ห้องแชทเต็มแล้ว! (28/28 คน)");
             document.getElementById("joinBox").style.display = "flex";
             isFirstJoinTriggered = false;
         } else {
