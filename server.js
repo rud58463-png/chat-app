@@ -36,7 +36,7 @@ app.post('/join', (req, res) => {
         joinedUsers.add(trimmedUsername);
     }
 
-    if(messages.length > 200) messages.shift();
+    if(messages.length > 80) messages.shift();
     
     clients.set(id, { username: trimmedUsername, profile: profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', lastSeen: Date.now() });
     res.json({ ok: true });
@@ -52,7 +52,7 @@ app.post('/chat', (req, res) => {
     user.lastSeen = Date.now(); 
     messages.push({ type:'message', username: user.username, profile: user.profile, text, time: Date.now() });
     
-    if(messages.length > 200) messages.shift();
+    if(messages.length > 80) messages.shift();
     res.json({ ok: true });
 });
 

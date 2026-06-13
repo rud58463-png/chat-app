@@ -80,6 +80,8 @@ input{
     border-radius:12px;
     padding:14px;
     font-size:16px;
+    background:#252525;
+    color:white;
 }
 
 button{
@@ -89,6 +91,8 @@ button{
     font-size:16px;
     cursor:pointer;
     flex-shrink:0;
+    background:#007bff;
+    color:white;
 }
 
 #msg{
@@ -126,21 +130,40 @@ const appName = params.get("name");
 
 let joined = false;
 let ws = null;
+let currentUsername = ""; // เก็บชื่อผู้ใช้ไว้ส่งใหม่ตอนเน็ตหลุด
+let reconnectTimeout = null;
+
+// ฟังก์ชันแปลงข้อความป้องกันการโดนแฮกหน้าจอ (XSS)
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+}
 
 function connect(){
-
     if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) {
         return;
     }
+
     const protocol = location.protocol === "https:" ? "wss://" : "ws://";
     ws = new WebSocket(protocol + location.host);
 
     ws.onopen = ()=>{
         console.log("connected");
+        if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
+        }
         
-        if(appName && !joined){
-            document.getElementById("joinBox").style.display = "none";
-            join(appName);
+        // กรณีเปิดผ่าน URL แบบระบุชื่อแอป
+        if(appName && !currentUsername){
+            currentUsername = appName;
+        }
+
+        // ไฮไลท์เด็ด: ถ้าเคยกด Join ไว้แล้วเน็ตหลุด พอต่อใหม่จะยิงส่งชื่อหา Server ออโต้ทันที
+        if(currentUsername){
+            joined = false; // ปลดล็อกชั่วคราวเพื่อให้ฟังก์ชัน join ยอมทำงาน
+            join(currentUsername);
         }
     };
 
@@ -156,19 +179,21 @@ function connect(){
         }
 
         if(data.type === "message"){
-            const now = new Date();
-            const time = now.toLocaleString("th-TH", {
+            // ดึงเวลาจากเซิร์ฟเวอร์ ถ้าไม่มีให้ใช้เวลาเครื่อง Client ปัจจุบัน
+            const msgDate = data.time ? new Date(data.time) : new Date();
+            const timeStr = msgDate.toLocaleString("th-TH", {
                 hour: "2-digit",
-                minute: "2-digit",
-                day: "2-digit",
-                month: "2-digit",
-                year: "2-digit"
+                minute: "2-digit"
             });
 
-             chat.innerHTML +=
+            // ตกแต่งและกรองข้อความก่อนแสดงผล
+            const safeText = escapeHTML(data.text);
+            const safeUser = data.username ? `<strong>${escapeHTML(data.username)}:</strong> ` : "";
+
+            chat.innerHTML +=
              `<div class="msg">
-                ${data.text}
-                <div class="msgTime">${time}</div>
+                ${safeUser}${safeText}
+                <div class="msgTime">${timeStr}</div>
             </div>`;
 
             chat.scrollTop = chat.scrollHeight;
@@ -180,20 +205,25 @@ function connect(){
         document.getElementById("myName").innerHTML = "⏳ กำลังเชื่อมต่อใหม่...";
         
         ws = null; 
-        setTimeout(connect, 2000);
+        if (!reconnectTimeout) {
+            reconnectTimeout = setTimeout(connect, 2000);
+        }
     };
 
-    ws.onerror = ()=>{};
+    ws.onerror = ()=>{
+        if(ws) ws.close();
+    };
 }
 
 function join(username){
     if(!ws || ws.readyState !== WebSocket.OPEN) return;
-    if(joined) return; // ล็อกระบบไว้ถ้าลงทะเบียนสำเร็จแล้ว ห้ามส่งซ้ำอีกรอบ
+    if(joined) return; 
 
     username = username.trim();
     if(username === "") return;
 
-    document.getElementById("username").value = username
+    currentUsername = username; // ล็อกชื่อเก็บไว้ในระบบจำลองความจำ Client
+    document.getElementById("username").value = username;
     document.getElementById("myName").innerHTML = "👤 ชื่อของคุณ: " + username;
 
     ws.send(JSON.stringify({ type:"join", username:username }));
