@@ -64,7 +64,7 @@ app.get('/poll', (req, res) => {
     
     const sinceTime = parseInt(since) || 0;
     const newMsgs = messages.filter(m => m.time > sinceTime);
-    res.json({ online: clients.size, messages: newMsgs, serverTime: Date.now() });
+    res.json({ online: joinedUsers.size, messages: newMsgs, serverTime: Date.now() });
 });
 
 app.post('/leave', (req, res) => {
