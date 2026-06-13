@@ -245,7 +245,7 @@ function doJoin(username, profile){
             document.getElementById("joinBox").style.display = "none";
             poll();
         } else if(data && data.reason === 'full') {
-            setStatus("🚫 ห้องแชทเต็มแล้ว! (1/1 คน)");
+            setStatus("🚫 ห้องแชทเต็มแล้ว! (2/2 คน)");
             document.getElementById("joinBox").style.display = "flex";
             isFirstJoinTriggered = false;
         } else {
