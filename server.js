@@ -12,7 +12,7 @@ const joinedUsers = new Set();
 setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
-        if(now - c.lastSeen > 4000) {
+        if(now - c.lastSeen > 1000) {
             // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
             joinedUsers.delete(c.username);
             clients.delete(id); 
@@ -198,7 +198,7 @@ var isFirstJoinTriggered = false;
 var myId = "id_" + Math.random().toString(36).slice(2);
 var myUsername = "";
 var myProfile = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-var lastTime = Date.now() - 30000; 
+var lastTime = Date.now() -10000; 
 
 try {
     var savedName = localStorage.getItem("savedUsername");
