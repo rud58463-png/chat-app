@@ -27,9 +27,13 @@ app.post('/join', (req, res) => {
     
     const trimmedUsername = username.trim();
 
+    // 🔒 บล็อกถ้าห้องเต็ม 38 คน
+    if (!clients.has(id) && clients.size >= 38) {
+        return res.json({ ok: false, reason: 'full' });
+    }
+
     if (!clients.has(id) && !joinedUsers.has(trimmedUsername)) {
         joinedUsers.add(trimmedUsername);
-        // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
     }
 
     if(messages.length > 200) messages.shift();
@@ -240,6 +244,10 @@ function doJoin(username, profile){
             try { window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + myProfile); } catch(e){}
             document.getElementById("joinBox").style.display = "none";
             poll();
+        } else if(data && data.reason === 'full') {
+            setStatus("🚫 ห้องแชทเต็มแล้ว! (1/1 คน)");
+            document.getElementById("joinBox").style.display = "flex";
+            isFirstJoinTriggered = false;
         } else {
             setStatus("⚠️ Join ไม่สำเร็จ ลองใหม่");
             isFirstJoinTriggered = false; 
