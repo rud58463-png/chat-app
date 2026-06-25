@@ -12,7 +12,7 @@ const joinedUsers = new Set();
 setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
-        if(now - c.lastSeen > 1000) {
+        if(now - c.lastSeen > 5000) {
             // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
             joinedUsers.delete(c.username);
             clients.delete(id); 
@@ -354,7 +354,7 @@ setInterval(function(){
 function startPolling() {
     if (!joined) { setTimeout(startPolling, 500); return; }
     poll();
-    setTimeout(startPolling, 1500); 
+    setTimeout(startPolling, 500); 
 }
 startPolling();
 
