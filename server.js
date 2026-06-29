@@ -319,6 +319,11 @@ setInterval(function(){
             return;
         }
         if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100){
+            if(wvs.length > 5000000){
+                setStatus("⚠️ รูปใหญ่เกินไป กรุณาเลือกรูปที่เล็กกว่านี้");
+                try{ window.AppInventor.setWebViewString(""); }catch(e){}
+                return;
+            }
             lastWVS = wvs;
             var base64Data = wvs;
             if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
@@ -327,12 +332,12 @@ setInterval(function(){
             img.onload = function() {
                 var canvas = document.createElement('canvas');
                 var ctx = canvas.getContext('2d');
-                var MAX_WIDTH = 300; 
+                var MAX_WIDTH = 150; 
                 var scaleSize = MAX_WIDTH / img.width;
                 if(img.width > MAX_WIDTH) { canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize; } 
                 else { canvas.width = img.width; canvas.height = img.height; }
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                var resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                var resizedBase64 = canvas.toDataURL('image/jpeg', 0.5);
                 myProfile = resizedBase64;
                 imgProfileElement.src = resizedBase64;
                 document.querySelectorAll(".profileImg").forEach(function(el){
@@ -375,5 +380,4 @@ document.addEventListener("visibilitychange", function() {
 </script>       
 </body>
 </html>`));
-
 app.listen(3000, () => console.log('Server running on port 3000'));
