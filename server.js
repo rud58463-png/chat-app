@@ -12,7 +12,7 @@ const joinedUsers = new Set();
 setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
-        if(now - c.lastSeen > 5000) {
+        if(now - c.lastSeen > 4000) {
             // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
             joinedUsers.delete(c.username);
             clients.delete(id); 
@@ -27,16 +27,12 @@ app.post('/join', (req, res) => {
     
     const trimmedUsername = username.trim();
 
-    // 🔒 บล็อกถ้าห้องเต็ม 38 คน
-    if (!clients.has(id) && !joinedUsers.has(trimmedUsername) && joinedUsers.size >= 28) {
-        return res.json({ ok: false, reason: 'full' });
-    }
-
     if (!clients.has(id) && !joinedUsers.has(trimmedUsername)) {
         joinedUsers.add(trimmedUsername);
+        // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
     }
 
-    if(messages.length > 80) messages.shift();
+    if(messages.length > 200) messages.shift();
     
     clients.set(id, { username: trimmedUsername, profile: profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', lastSeen: Date.now() });
     res.json({ ok: true });
@@ -52,7 +48,7 @@ app.post('/chat', (req, res) => {
     user.lastSeen = Date.now(); 
     messages.push({ type:'message', username: user.username, profile: user.profile, text, time: Date.now() });
     
-    if(messages.length > 80) messages.shift();
+    if(messages.length > 200) messages.shift();
     res.json({ ok: true });
 });
 
@@ -64,7 +60,7 @@ app.get('/poll', (req, res) => {
     
     const sinceTime = parseInt(since) || 0;
     const newMsgs = messages.filter(m => m.time > sinceTime);
-    res.json({ online: joinedUsers.size, messages: newMsgs, serverTime: Date.now() });
+    res.json({ online: clients.size, messages: newMsgs, serverTime: Date.now() });
 });
 
 app.post('/leave', (req, res) => {
@@ -198,7 +194,7 @@ var isFirstJoinTriggered = false;
 var myId = "id_" + Math.random().toString(36).slice(2);
 var myUsername = "";
 var myProfile = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-var lastTime = Date.now() -10000; 
+var lastTime = Date.now() - 30000; 
 
 try {
     var savedName = localStorage.getItem("savedUsername");
@@ -244,10 +240,6 @@ function doJoin(username, profile){
             try { window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + myProfile); } catch(e){}
             document.getElementById("joinBox").style.display = "none";
             poll();
-        } else if(data && data.reason === 'full') {
-            setStatus("🚫 ห้องแชทเต็มแล้ว! (28/28 คน)");
-            document.getElementById("joinBox").style.display = "flex";
-            isFirstJoinTriggered = false;
         } else {
             setStatus("⚠️ Join ไม่สำเร็จ ลองใหม่");
             isFirstJoinTriggered = false; 
@@ -319,11 +311,6 @@ setInterval(function(){
             return;
         }
         if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100){
-            if(wvs.length > 5000000){
-                setStatus("⚠️ รูปใหญ่เกินไป กรุณาเลือกรูปที่เล็กกว่านี้");
-                try{ window.AppInventor.setWebViewString(""); }catch(e){}
-                return;
-            }
             lastWVS = wvs;
             var base64Data = wvs;
             if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
@@ -332,12 +319,12 @@ setInterval(function(){
             img.onload = function() {
                 var canvas = document.createElement('canvas');
                 var ctx = canvas.getContext('2d');
-                var MAX_WIDTH = 150; 
+                var MAX_WIDTH = 300; 
                 var scaleSize = MAX_WIDTH / img.width;
                 if(img.width > MAX_WIDTH) { canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize; } 
                 else { canvas.width = img.width; canvas.height = img.height; }
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                var resizedBase64 = canvas.toDataURL('image/jpeg', 0.5);
+                var resizedBase64 = canvas.toDataURL('image/jpeg', 0.8);
                 myProfile = resizedBase64;
                 imgProfileElement.src = resizedBase64;
                 document.querySelectorAll(".profileImg").forEach(function(el){
@@ -359,7 +346,7 @@ setInterval(function(){
 function startPolling() {
     if (!joined) { setTimeout(startPolling, 500); return; }
     poll();
-    setTimeout(startPolling, 500); 
+    setTimeout(startPolling, 1500); 
 }
 startPolling();
 
@@ -380,4 +367,5 @@ document.addEventListener("visibilitychange", function() {
 </script>       
 </body>
 </html>`));
+
 app.listen(3000, () => console.log('Server running on port 3000'));
