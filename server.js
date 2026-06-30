@@ -27,11 +27,11 @@ app.post('/join', (req, res) => {
     
     const trimmedUsername = username.trim();
 
-    if (!clients.has(id) && !joinedUsers.has(trimmedUsername)) {
-        joinedUsers.add(trimmedUsername);
-        // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
+    // 🔒 บล็อกถ้าห้องเต็ม 38 คน
+    if (!clients.has(id) && !joinedUsers.has(trimmedUsername) && joinedUsers.size >= 28) {
+        return res.json({ ok: false, reason: 'full' });
     }
-
+    
     if(messages.length > 200) messages.shift();
     
     clients.set(id, { username: trimmedUsername, profile: profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', lastSeen: Date.now() });
@@ -240,6 +240,10 @@ function doJoin(username, profile){
             try { window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + myProfile); } catch(e){}
             document.getElementById("joinBox").style.display = "none";
             poll();
+        } else if(data && data.reason === 'full') {
+            setStatus("🚫 ห้องแชทเต็มแล้ว! (28/28 คน)");
+            document.getElementById("joinBox").style.display = "flex";
+            isFirstJoinTriggered = false;
         } else {
             setStatus("⚠️ Join ไม่สำเร็จ ลองใหม่");
             isFirstJoinTriggered = false; 
