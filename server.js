@@ -314,7 +314,7 @@ setInterval(function(){
             try{ window.AppInventor.setWebViewString(""); }catch(err){} 
             return;
         }
-        if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100){
+        if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100 && !wvs.startsWith("LOAD_DATA")){
             lastWVS = wvs;
             var base64Data = wvs;
             if (!base64Data.startsWith("data:image")) { base64Data = "data:image/jpeg;base64," + base64Data; }
