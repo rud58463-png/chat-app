@@ -3,16 +3,23 @@ const app = express();
 const path = require('path');
 const admin = require('firebase-admin');
 
-// ✅ แก้ไขการโหลดคีย์ ป้องกัน JSON ผิดพลาด
+// ✅ ซ่อมรูปแบบคีย์ Firebase ให้ถูกต้องโดยอัตโนมัติ
 let serviceAccount;
 try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    // ตัดช่องว่าง/ขึ้นบรรทัดเกินก่อนแปลง JSON
-    const cleanKey = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
-    serviceAccount = JSON.parse(cleanKey);
+  const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT || '';
+  if (rawKey.trim()) {
+    // แก้ไขอักขระขึ้นบรรทัดใหม่และเครื่องหมายพิเศษที่ผิดรูปแบบ
+    const fixedKey = rawKey
+      .replace(/\\n/g, '\n')
+      .replace(/\\\r/g, '')
+      .replace(/\\"/g, '"')
+      .trim();
+    serviceAccount = JSON.parse(fixedKey);
+    console.log("✅ โหลดคีย์สำเร็จ");
   } else {
-    // อ่านจากไฟล์ในเครื่องตอนทดสอบ
+    // ใช้ไฟล์ในเครื่องตอนทดสอบ
     serviceAccount = require('./serviceAccountKey.json');
+    console.log("✅ ใช้คีย์ในเครื่อง");
   }
 } catch (err) {
   console.error("❌ โหลดคีย์ Firebase ไม่สำเร็จ:", err.message);
