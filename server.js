@@ -13,28 +13,34 @@ setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
         if(now - c.lastSeen > 4000) {
-            // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
             joinedUsers.delete(c.username);
             clients.delete(id); 
         }
     }
 }, 2000);
 
+// ✅ ตรวจสอบข้อมูลจากแอปเท่านั้น - ไม่รับชื่อที่กรอกเอง
 app.post('/join', (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
-    const { id, username, profile } = req.body;
-    if(!id || !username) return res.json({ ok: false });
+    const { id, username, profile, uid } = req.body;
+    // ต้องมี uid จากระบบบัญชีแอปด้วยเสมอ
+    if(!id || !username || !uid) return res.json({ ok: false, reason: 'invalid_access' });
     
     const trimmedUsername = username.trim();
 
-    // 🔒 บล็อกถ้าห้องเต็ม 38 คน
+    // บล็อกถ้าห้องเต็ม 28 คน
     if (!clients.has(id) && !joinedUsers.has(trimmedUsername) && joinedUsers.size >= 28) {
         return res.json({ ok: false, reason: 'full' });
     }
     
     if(messages.length > 200) messages.shift();
     
-    clients.set(id, { username: trimmedUsername, profile: profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', lastSeen: Date.now() });
+    clients.set(id, { 
+        username: trimmedUsername, 
+        profile: profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png', 
+        uid: uid,
+        lastSeen: Date.now() 
+    });
     res.json({ ok: true });
 });
 
@@ -68,7 +74,6 @@ app.post('/leave', (req, res) => {
     const { id } = req.body;
     if(clients.has(id)) {
         const user = clients.get(id);
-        // ลบแจ้งเตือนออก - ไม่ push messages แล้ว
         joinedUsers.delete(user.username);
         clients.delete(id);
     }
@@ -81,7 +86,7 @@ app.get('/', (req, res) =>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Chat Room</title>
+<title>ห้องแชทรวม</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { 
@@ -100,11 +105,12 @@ app.get('/', (req, res) =>
     border-bottom: 1px solid #232530; 
     flex-shrink: 0; 
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
   .header-top {
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center;
+    flex: 1;
   }
   h2 { margin: 0; font-size: 18px; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px; }
   #online { font-size: 12px; color: #a4b0be; margin-top: 4px; display: flex; align-items: center; gap: 4px; }
@@ -114,23 +120,27 @@ app.get('/', (req, res) =>
     border: 2px solid #0056ff; cursor: pointer; background: #1e202c; 
     transition: transform 0.2s, border-color 0.2s;
     box-shadow: 0 0 10px rgba(0, 86, 255, 0.2);
+    flex-shrink: 0;
   }
   #myProfile:active { transform: scale(0.95); border-color: #00a2ff; }
+
+  /* ✅ ซ่อนช่องกรอกชื่อ+ปุ่ม Join ตลอดเวลา */
   #joinBox { 
-    margin-top: 12px; display: flex; flex-direction: column; gap: 8px; 
-    background: #1e202c; padding: 12px; border-radius: 12px; border: 1px solid #2d3043;
+    display: none !important;
   }
-  #joinBox input[type="text"] { 
-    width: 100%; border: 1px solid #2d3043; outline: none; border-radius: 8px; 
-    padding: 10px 12px; font-size: 14px; background: #12131a; color: white; transition: border-color 0.2s;
+
+  #errorBlock {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    color: #ff6b6b;
+    font-size: 18px;
   }
-  #joinBox input[type="text"]:focus { border-color: #0056ff; }
-  #joinBtn { 
-    width: 100%; border: none; border-radius: 8px; padding: 11px; font-size: 14px; 
-    cursor: pointer; background: #0056ff; color: white; font-weight: bold; transition: background 0.2s;
-  }
-  #joinBtn:active { background: #0041c2; }
-  #chat { flex: 1; overflow-y: auto; padding: 16px; background: #0d0e12; scroll-behavior: smooth; }
+  #chat { flex: 1; overflow-y: auto; padding: 16px; background: #0d0e12; scroll-behavior: smooth; display: none; }
   .msg { 
     background: #16171e; margin-bottom: 12px; padding: 12px; border-radius: 14px; 
     border: 1px solid #1f212c; max-width: 90%; animation: fadeIn 0.2s ease-out;
@@ -146,7 +156,8 @@ app.get('/', (req, res) =>
     margin: 10px auto; border-radius: 20px; border: 1px solid #232530; font-weight: 500; max-width: fit-content;
   }
   #bottomBar { 
-    display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid #232530; 
+    display: none; 
+    gap: 8px; padding: 12px 16px; border-top: 1px solid #232530; 
     background: #16171e; flex-shrink: 0; box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
   }
   #msg { 
@@ -162,24 +173,26 @@ app.get('/', (req, res) =>
 </style>
 </head>
 <body>
-<header>
+
+<div id="errorBlock">⚠️ กรุณาเข้าสู่ระบบผ่านแอป Rudjiroad ก่อนใช้งานแชท</div>
+
+<header id="chatHeader" style="display: none;">
+  <img id="myProfile" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="รูปโปรไฟล์">
   <div class="header-top">
-    <div>
-      <h2>💬 ห้องแชทรวม</h2>
-      <div id="online">👥 ออนไลน์: 0 คน</div>
-      <div id="myName">👤 ยังไม่ได้ Join</div>
-    </div>
-    <img id="myProfile" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="Profile">
-  </div>
-  <div id="joinBox">
-    <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้ที่นี่...">
-    <button id="joinBtn" onclick="joinChat()">กดเพื่อ Join เข้าแชท</button>
+    <h2>💬 ห้องแชทรวม</h2>
+    <div id="online">👥 ออนไลน์: 0 คน</div>
+    <div id="myName">👤 ชื่อของคุณ: <span id="displayName"></span></div>
   </div>
 </header>
 
+<div id="joinBox">
+  <input type="text" id="username" placeholder="กรอกชื่อผู้ใช้ที่นี่...">
+  <button id="joinBtn" onclick="joinChat()">กดเพื่อ Join เข้าแชท</button>
+</div>
+
 <div id="chat"></div>
 
-<div id="bottomBar">
+<div id="bottomBar" id="inputBar">
   <input id="msg" placeholder="พิมพ์ข้อความ...">
   <button id="sendBtn" onclick="sendMsg()">ส่ง</button>
 </div>
@@ -188,24 +201,42 @@ app.get('/', (req, res) =>
 var chat = document.getElementById("chat");
 var imgProfileElement = document.getElementById("myProfile");
 var params = new URLSearchParams(window.location.search);
+
+// ✅ รับข้อมูลจากแอปเท่านั้น
 var appName = params.get("name");
+var appUid = params.get("uid");
+var appAvatar = params.get("avatar");
+
 var joined = false;
 var isFirstJoinTriggered = false; 
 var myId = "id_" + Math.random().toString(36).slice(2);
 var myUsername = "";
+var myUid = "";
 var myProfile = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 var lastTime = Date.now() - 30000; 
 
-try {
-    var savedName = localStorage.getItem("savedUsername");
-    var savedImg = localStorage.getItem("profileImage");
-    if(savedImg) { myProfile = savedImg; imgProfileElement.src = savedImg; }
-    if(savedName && !isFirstJoinTriggered) { 
-        isFirstJoinTriggered = true;
-        document.getElementById("username").value = savedName; 
-        setTimeout(function(){ doJoin(savedName, myProfile); }, 500);
-    }
-} catch(e){}
+// ✅ ตรวจสอบว่ามาจากแอปจริงหรือไม่
+if(!appName || !appUid){
+  // แสดงข้อความแจ้งเตือนเท่านั้น - ไม่ให้ใช้งาน
+} else {
+  // แสดงหน้าแชทเมื่อข้อมูลครบถ้วน
+  document.getElementById("errorBlock").style.display = "none";
+  document.getElementById("chatHeader").style.display = "flex";
+  document.getElementById("chat").style.display = "block";
+  document.getElementById("bottomBar").style.display = "flex";
+  
+  // ตั้งค่าข้อมูลผู้ใช้จากแอป
+  myUsername = appName;
+  myUid = appUid;
+  if(appAvatar) myProfile = appAvatar;
+  document.getElementById("displayName").textContent = myUsername;
+  imgProfileElement.src = myProfile;
+  
+  // เข้าร่วมแชทอัตโนมัติ
+  setTimeout(() => {
+    doJoin(myUsername, myProfile, myUid);
+  }, 300);
+}
 
 function setStatus(msg){ document.getElementById("myName").innerHTML = msg; }
 
@@ -222,45 +253,35 @@ function xhr(method, url, data, cb){
     x.send(data ? JSON.stringify(data) : null);
 }
 
-function doJoin(username, profile){
-    myUsername = username;
-    myProfile = profile || myProfile;
-    setStatus("⏳ กำลัง Join...");
+function doJoin(username, profile, uid){
+    setStatus("⏳ กำลังเชื่อมต่อห้องแชท...");
     var timeout = setTimeout(function(){
-        setStatus("⚠️ เชื่อมต่อ server ไม่ได้ ลองใหม่");
-        document.getElementById("joinBox").style.display = "flex";
+        setStatus("⚠️ เชื่อมต่อไม่ได้ ลองใหม่อีกครั้ง");
     }, 6000);
-    xhr("POST", "/join", { id: myId, username: username, profile: myProfile }, function(data){
+    xhr("POST", "/join", { id: myId, username: username, profile: profile, uid: uid }, function(data){
         clearTimeout(timeout);
         if(data && data.ok){
             joined = true;
             setStatus("👤 ชื่อของคุณ: " + username);
-            imgProfileElement.src = myProfile;
-            try { localStorage.setItem("savedUsername", myUsername); localStorage.setItem("profileImage", myProfile); } catch(e){}
-            try { window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + myProfile); } catch(e){}
-            document.getElementById("joinBox").style.display = "none";
+            try { localStorage.setItem("savedUsername", username); localStorage.setItem("profileImage", profile); } catch(e){}
             poll();
         } else if(data && data.reason === 'full') {
             setStatus("🚫 ห้องแชทเต็มแล้ว! (28/28 คน)");
-            document.getElementById("joinBox").style.display = "flex";
-            isFirstJoinTriggered = false;
+        } else if(data && data.reason === 'invalid_access') {
+            setStatus("⚠️ ไม่มีสิทธิ์เข้าใช้งาน");
         } else {
-            setStatus("⚠️ Join ไม่สำเร็จ ลองใหม่");
-            isFirstJoinTriggered = false; 
+            setStatus("⚠️ เข้าร่วมไม่สำเร็จ ลองใหม่");
         }
     });
 }
 
+// ❌ ปิดการใช้งานปุ่มกรอกชื่อเองทั้งหมด
 function joinChat(){
-    if(joined) return;
-    var username = document.getElementById("username").value.trim();
-    if(username === ""){ setStatus("⚠️ กรุณากรอกชื่อก่อน"); return; }
-    isFirstJoinTriggered = true;
-    doJoin(username, myProfile);
+    alert("กรุณาเข้าสู่ระบบผ่านแอป Rudjiroad เท่านั้น");
 }
 
 function sendMsg(){
-    if(!joined){ setStatus("⚠️ กรุณา Join ก่อน"); return; }
+    if(!joined){ setStatus("⚠️ รอการเชื่อมต่อสักครู่..."); return; }
     var msg = document.getElementById("msg");
     var text = msg.value.trim();
     if(text === "") return;
@@ -279,7 +300,7 @@ function poll(){
         if(data.messages && data.messages.length > 0){
             data.messages.forEach(function(m){
                 if(m.type === "join"){
-                    chat.innerHTML += '<div class="joinMsg">' + m.username + '</div>';
+                    chat.innerHTML += '<div class="joinMsg">' + m.username + ' เข้าร่วมห้องแชท</div>';
                 } else {
                     chat.innerHTML += '<div class="msg"><div class="messageRow"><img class="profileImg" data-user="' + m.username + '" src="' + (m.profile || 'https://cdn-icons-png.flaticon.com/512/149/149071.png') + '"><div class="messageContent"><div class="messageName">' + m.username + '</div><div class="messageText">' + m.text + '</div></div></div></div>';
                 }
@@ -295,7 +316,7 @@ document.getElementById("msg").addEventListener("keypress", function(e){
 });
 
 imgProfileElement.onclick = function() {
-    try { window.AppInventor.setWebViewString("PICK_IMAGE"); } catch(e) { setStatus("⚠️ ต้องกดผ่านหน้าจอแอปมือถือเท่านั้น"); }
+    try { window.AppInventor.setWebViewString("PICK_IMAGE"); } catch(e) { alert("ต้องเปลี่ยนรูปผ่านหน้าแอปเท่านั้น"); }
 };
 
 var lastWVS = "";
@@ -303,17 +324,6 @@ setInterval(function(){
     try{
         var wvs = window.AppInventor.getWebViewString();
         if(!wvs) return;
-        if(wvs.startsWith("LOAD_DATA|") && !isFirstJoinTriggered){
-            isFirstJoinTriggered = true;
-            var parts = wvs.split("|");
-            var loadedName = parts[1];
-            var loadedImg = parts[2];
-            if(loadedName) { document.getElementById("username").value = loadedName; myUsername = loadedName; }
-            if(loadedImg && loadedImg !== "undefined") { myProfile = loadedImg; imgProfileElement.src = loadedImg; }
-            if(loadedName) { doJoin(loadedName, myProfile); }
-            try{ window.AppInventor.setWebViewString(""); }catch(err){} 
-            return;
-        }
         if(wvs !== "PICK_IMAGE" && wvs !== lastWVS && wvs.length > 100 && !wvs.startsWith("LOAD_DATA")){
             lastWVS = wvs;
             var base64Data = wvs;
@@ -335,9 +345,8 @@ setInterval(function(){
                     if(el.getAttribute("data-user") === myUsername){ el.src = resizedBase64; }
                 });
                 try{ localStorage.setItem("profileImage", resizedBase64); }catch(e){}
-                try{ window.AppInventor.setWebViewString("SAVE_DATA|" + myUsername + "|" + resizedBase64); }catch(e){}
                 if(joined){
-                    xhr("POST", "/join", { id: myId, username: myUsername, profile: resizedBase64 }, function(){
+                    xhr("POST", "/join", { id: myId, username: myUsername, profile: resizedBase64, uid: myUid }, function(){
                         setStatus("👤 ชื่อของคุณ: " + myUsername + " (อัปเดตรูปแล้ว)");
                     });
                 }
@@ -352,7 +361,7 @@ function startPolling() {
     poll();
     setTimeout(startPolling, 1500); 
 }
-startPolling();
+if(appName && appUid) startPolling();
 
 function disconnectFromServer() {
     if (joined && myId) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chat Room</title>
+<title>ห้องแชทรวม</title>
 <style>
 *{ box-sizing:border-box; }
 
@@ -23,19 +23,36 @@ header{
     background:#1b1b1b;
     padding:15px;
     border-bottom:1px solid #333;
+    display:flex;
+    align-items:center;
+    gap:12px;
 }
 
-h2{ margin:0; }
+.user-avatar{
+    width:40px;
+    height:40px;
+    border-radius:50%;
+    background:#444;
+    flex-shrink:0;
+    object-fit:cover;
+}
+
+.header-text{
+    flex:1;
+}
+
+h2{ margin:0; font-size:20px; }
 
 #online, #myName{
-    margin-top:8px;
-    font-size:16px;
+    margin-top:4px;
+    font-size:14px;
+    color:#ccc;
 }
 
 #joinBox{
-    padding:15px;
-    display:flex;
-    gap:10px;
+    padding:30px 15px;
+    text-align:center;
+    display:none; /* ซ่อนช่องกรอกชื่อตลอดเวลา */
 }
 
 #joinBox input{ flex:1; }
@@ -100,15 +117,29 @@ button{
     min-width:0;
     box-sizing:border-box;
 }
+
+#errorMsg{
+    display:none;
+    text-align:center;
+    margin-top:50px;
+    padding:20px;
+    color:#ff6b6b;
+    font-size:18px;
+}
 </style>
 </head>
 
 <body>
 
-<header>
-    <h2>💬 ห้องแชทรวม</h2>
-    <div id="online">👥 ออนไลน์: 0 คน</div>
-    <div id="myName">👤 ชื่อของคุณ: ยังไม่ได้ Join</div>
+<div id="errorMsg">⚠️ กรุณาเข้าสู่ระบบผ่านแอปก่อนใช้งานแชท</div>
+
+<header id="chatHeader" style="display:none;">
+    <img id="userAvatar" class="user-avatar" src="" alt="รูปโปรไฟล์">
+    <div class="header-text">
+        <h2>💬 ห้องแชทรวม</h2>
+        <div id="online">👥 ออนไลน์: 0 คน</div>
+        <div id="myName">👤 ชื่อของคุณ: <span id="displayName"></span></div>
+    </div>
 </header>
 
 <div id="joinBox">
@@ -118,7 +149,7 @@ button{
 
 <div id="chat"></div>
 
-<div id="bottomBar">
+<div id="bottomBar" style="display:none;">
     <input id="msg" placeholder="พิมพ์ข้อความ" maxlength="60">
     <button onclick="sendMsg()">ส่ง</button>
 </div>
@@ -126,18 +157,35 @@ button{
 <script>
 const chat = document.getElementById("chat");
 const params = new URLSearchParams(window.location.search);
-const appName = params.get("name");
+
+// ✅ รับข้อมูลจากแอปเท่านั้น
+const appName = params.get("name") || "";
+const appUid = params.get("uid") || "";
+const appAvatar = params.get("avatar") || "";
 
 let joined = false;
 let ws = null;
-let currentUsername = ""; // เก็บชื่อผู้ใช้ไว้ส่งใหม่ตอนเน็ตหลุด
+let currentUsername = "";
 let reconnectTimeout = null;
 
-// ฟังก์ชันแปลงข้อความป้องกันการโดนแฮกหน้าจอ (XSS)
+// ป้องกันโค้ดแทรก
 function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, 
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
     );
+}
+
+// ✅ ตรวจสอบว่ามาจากแอปจริงหรือไม่
+if(!appName || !appUid){
+    document.getElementById("errorMsg").style.display = "block";
+} else {
+    // แสดงหน้าแชทเมื่อข้อมูลครบถ้วน
+    document.getElementById("chatHeader").style.display = "flex";
+    document.getElementById("bottomBar").style.display = "flex";
+    document.getElementById("displayName").textContent = appName;
+    if(appAvatar) document.getElementById("userAvatar").src = appAvatar;
+    currentUsername = appName;
+    connect();
 }
 
 function connect(){
@@ -149,20 +197,13 @@ function connect(){
     ws = new WebSocket(protocol + location.host);
 
     ws.onopen = ()=>{
-        console.log("connected");
+        console.log("เชื่อมต่อสำเร็จ");
         if (reconnectTimeout) {
             clearTimeout(reconnectTimeout);
             reconnectTimeout = null;
         }
-        
-        // กรณีเปิดผ่าน URL แบบระบุชื่อแอป
-        if(appName && !currentUsername){
-            currentUsername = appName;
-        }
-
-        // ไฮไลท์เด็ด: ถ้าเคยกด Join ไว้แล้วเน็ตหลุด พอต่อใหม่จะยิงส่งชื่อหา Server ออโต้ทันที
+        // ส่งชื่อที่รับจากแอปไปยังเซิร์ฟเวอร์อัตโนมัติ
         if(currentUsername){
-            joined = false; // ปลดล็อกชั่วคราวเพื่อให้ฟังก์ชัน join ยอมทำงาน
             join(currentUsername);
         }
     };
@@ -179,14 +220,12 @@ function connect(){
         }
 
         if(data.type === "message"){
-            // ดึงเวลาจากเซิร์ฟเวอร์ ถ้าไม่มีให้ใช้เวลาเครื่อง Client ปัจจุบัน
             const msgDate = data.time ? new Date(data.time) : new Date();
             const timeStr = msgDate.toLocaleString("th-TH", {
                 hour: "2-digit",
                 minute: "2-digit"
             });
 
-            // ตกแต่งและกรองข้อความก่อนแสดงผล
             const safeText = escapeHTML(data.text);
             const safeUser = data.username ? `<strong>${escapeHTML(data.username)}:</strong> ` : "";
 
@@ -222,18 +261,16 @@ function join(username){
     username = username.trim();
     if(username === "") return;
 
-    currentUsername = username; // ล็อกชื่อเก็บไว้ในระบบจำลองความจำ Client
-    document.getElementById("username").value = username;
+    currentUsername = username;
     document.getElementById("myName").innerHTML = "👤 ชื่อของคุณ: " + username;
 
     ws.send(JSON.stringify({ type:"join", username:username }));
-    document.getElementById("joinBox").style.display = "none";
     joined = true;
 }
 
+// ❌ ปิดการใช้งานปุ่มกรอกชื่อเองทั้งหมด
 function joinChat(){
-    const username = document.getElementById("username").value;
-    join(username);
+    alert("กรุณาเข้าสู่ระบบผ่านแอปเท่านั้น");
 }
 
 function sendMsg(){
@@ -250,9 +287,6 @@ function sendMsg(){
 document.getElementById("msg").addEventListener("keypress", (e)=>{
     if(e.key === "Enter"){ sendMsg(); }
 });
-
-// เริ่มต้นระบบเชื่อมต่อ
-connect();
 </script>
 
 </body>
