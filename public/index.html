@@ -5,19 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ห้องแชท Rudjiroad</title>
   <script src="/socket.io/socket.io.js"></script>
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
     body { background: #1a1a1a; color: #fff; min-height: 100vh; }
-    /* หน้าล็อกอิน */
     .login-container { text-align: center; padding-top: 180px; }
     .login-container h2 { margin-bottom: 30px; color: #ff4444; font-size: 24px; }
     .btn { padding: 14px 28px; margin: 10px; font-size: 17px; border-radius: 8px; border: none; cursor: pointer; color: #fff; font-weight: 500; }
     .btn-google { background: #4285F4; }
     .btn-facebook { background: #1877F2; }
-    /* หน้าแชท */
     .chat-container { display: none; max-width: 850px; margin: 0 auto; padding: 25px; }
     .chat-header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #333; }
     .chat-header h3 { font-size: 20px; }
@@ -31,7 +28,6 @@
   </style>
 </head>
 <body>
-  <!-- หน้าล็อกอิน -->
   <div id="loginPage" class="login-container">
     <h2>⚠️ กรุณาเข้าสู่ระบบก่อนใช้งานแชท</h2>
     <button class="btn btn-google" onclick="loginGoogle()">เข้าสู่ระบบด้วย Google</button>
@@ -39,7 +35,6 @@
     <button class="btn btn-facebook" onclick="loginFacebook()">เข้าสู่ระบบด้วย Facebook</button>
   </div>
 
-  <!-- หน้าแชท -->
   <div id="chatPage" class="chat-container">
     <div class="chat-header">
       <h3>ยินดีต้อนรับ, <span id="showName"></span></h3>
@@ -52,9 +47,8 @@
   </div>
 
   <script>
-    // 👇 วางค่า firebaseConfig ที่คุณคัดลอกมาจาก Firebase ตรงนี้ 👇
     const firebaseConfig = {
-      apiKey: "AIzaSyAxxxxxxxxx",
+      apiKey: "AIzaSyAePzrLqD2kfM7xQZbW8eR9tY7uI6oP5nM4b3V2c1X9z", // 👉 ใส่ apiKey จริงของคุณตรงนี้
       authDomain: "chat-app-rudjiroad.firebaseapp.com",
       projectId: "chat-app-rudjiroad",
       storageBucket: "chat-app-rudjiroad.appspot.com",
@@ -62,15 +56,12 @@
       appId: "1:744167583213:web:71b2e3a7b1d7194"
     };
 
-    // เริ่มต้น Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     let socket, userData;
 
-    // ตรวจสอบสถานะเข้าสู่ระบบ
     auth.onAuthStateChanged(user => {
       if (user) {
-        // เข้าสู่ระบบสำเร็จ → เปิดหน้าแชท
         userData = {
           name: user.displayName || user.email.split('@')[0],
           uid: user.uid,
@@ -81,34 +72,29 @@
         document.getElementById("chatPage").style.display = "block";
         connectChat();
       } else {
-        // ยังไม่เข้าสู่ระบบ → แสดงหน้าล็อกอิน
         document.getElementById("loginPage").style.display = "block";
         document.getElementById("chatPage").style.display = "none";
       }
     });
 
-    // ล็อกอินด้วย Google
     function loginGoogle() {
       const provider = new firebase.auth.GoogleAuthProvider();
       auth.signInWithPopup(provider)
         .catch(err => alert("ผิดพลาด: " + err.message));
     }
 
-    // ล็อกอินด้วย Facebook (ถ้ายังไม่ตั้งค่า กดแล้วจะแจ้งเตือน ไม่พังครับ)
     function loginFacebook() {
       const provider = new firebase.auth.FacebookAuthProvider();
       auth.signInWithPopup(provider)
         .catch(err => alert("ผิดพลาด: " + err.message));
     }
 
-    // เชื่อมต่อระบบแชท
     function connectChat() {
       socket = io();
       socket.on("connect", () => console.log("เชื่อมต่อเซิร์ฟเวอร์สำเร็จ"));
       socket.on("receive_message", (data) => addMsgToBox(data));
     }
 
-    // ส่งข้อความ
     function sendMsg() {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
@@ -124,7 +110,6 @@
       input.value = "";
     }
 
-    // แสดงข้อความในกล่อง
     function addMsgToBox(data) {
       const box = document.getElementById("chatMessages");
       const div = document.createElement("div");
@@ -134,7 +119,6 @@
       box.scrollTop = box.scrollHeight;
     }
 
-    // กด Enter ส่งข้อความ
     document.getElementById("msgInput").addEventListener("keydown", e => {
       if (e.key === "Enter") sendMsg();
     });
