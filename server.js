@@ -1,35 +1,34 @@
-const express = require('express');
+const express = require("express");
 const app = express();
-const path = require('path');
-const admin = require('firebase-admin');
+const path = require("path");
 
-// ✅ ซ่อมรูปแบบคีย์ Firebase ให้ถูกต้องโดยอัตโนมัติ
+const admin = require("firebase-admin");
+
+// โหลด Firebase Key
 let serviceAccount;
+
 try {
-  const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT || '';
-  if (rawKey.trim()) {
-    // แก้ไขอักขระขึ้นบรรทัดใหม่และเครื่องหมายพิเศษที่ผิดรูปแบบ
-    const fixedKey = rawKey
-      .replace(/\\n/g, '\n')
-      .replace(/\\\r/g, '')
-      .replace(/\\"/g, '"')
-      .trim();
-    serviceAccount = JSON.parse(fixedKey);
-    console.log("✅ โหลดคีย์สำเร็จ");
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    console.log("✅ โหลด Firebase จาก Environment");
   } else {
-    // ใช้ไฟล์ในเครื่องตอนทดสอบ
-    serviceAccount = require('./serviceAccountKey.json');
-    console.log("✅ ใช้คีย์ในเครื่อง");
+    serviceAccount = require("./serviceAccountKey.json");
+    console.log("✅ โหลด Firebase จากไฟล์");
   }
 } catch (err) {
-  console.error("❌ โหลดคีย์ Firebase ไม่สำเร็จ:", err.message);
+  console.error("❌ โหลดคีย์ Firebase ไม่สำเร็จ");
+  console.error(err);
   process.exit(1);
 }
 
-// เริ่มต้น Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+// เริ่มต้น Firebase
+if (admin.apps.length === 0) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+}
+
+console.log("✅ Firebase Admin พร้อมใช้งาน");
 
 app.use(express.json({ limit: "50mb" })); 
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
