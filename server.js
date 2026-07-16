@@ -1,12 +1,23 @@
 const express = require('express');
 const app = express();
 const path = require('path');
-
-// นำเข้า Firebase Admin เพื่อตรวจสอบโทเค็น (ต้องติดตั้งก่อน: npm install firebase-admin)
 const admin = require('firebase-admin');
-const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT 
-  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT) 
-  : require('./serviceAccountKey.json');
+
+// ✅ แก้ไขการโหลดคีย์ ป้องกัน JSON ผิดพลาด
+let serviceAccount;
+try {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    // ตัดช่องว่าง/ขึ้นบรรทัดเกินก่อนแปลง JSON
+    const cleanKey = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+    serviceAccount = JSON.parse(cleanKey);
+  } else {
+    // อ่านจากไฟล์ในเครื่องตอนทดสอบ
+    serviceAccount = require('./serviceAccountKey.json');
+  }
+} catch (err) {
+  console.error("❌ โหลดคีย์ Firebase ไม่สำเร็จ:", err.message);
+  process.exit(1);
+}
 
 // เริ่มต้น Firebase Admin
 admin.initializeApp({
@@ -16,7 +27,7 @@ admin.initializeApp({
 app.use(express.json({ limit: "50mb" })); 
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// ให้เซิร์ฟเวอร์แสดงไฟล์ในโฟลเดอร์ public (หน้าล็อกอิน+แชทของเรา)
+// ให้เซิร์ฟเวอร์แสดงไฟล์ในโฟลเดอร์ public
 app.use(express.static(path.join(__dirname, 'public')));
 
 const messages = [];
@@ -30,14 +41,15 @@ async function verifyToken(req, res, next) {
   
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    req.user = decodedToken; // เก็บข้อมูลผู้ใช้จาก Firebase
+    req.user = decodedToken;
     next();
   } catch (err) {
+    console.error("❌ ตรวจสอบโทเค็นไม่ผ่าน:", err.message);
     return res.status(401).json({ ok: false, reason: 'invalid_token' });
   }
 }
 
-// ระบบตรวจจับคนออกจากห้องแชทแบบ Real-time
+// ตรวจจับคนออกจากห้องแชทแบบ Real-time
 setInterval(() => {
     const now = Date.now();
     for(const [id, c] of clients){
@@ -48,11 +60,11 @@ setInterval(() => {
     }
 }, 2000);
 
-// ✅ ใช้ข้อมูลจาก Firebase แทนการรับจาก URL
+// เข้าร่วมห้องแชท
 app.post('/join', verifyToken, (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id } = req.body;
-    const firebaseUser = req.user; // ข้อมูลจาก Firebase
+    const firebaseUser = req.user;
     
     if(!id) return res.json({ ok: false, reason: 'invalid_access' });
     
@@ -60,7 +72,6 @@ app.post('/join', verifyToken, (req, res) => {
     const profile = firebaseUser.picture || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
     const uid = firebaseUser.uid;
 
-    // บล็อกถ้าห้องเต็ม 28 คน
     if (!clients.has(id) && !joinedUsers.has(username) && joinedUsers.size >= 28) {
         return res.json({ ok: false, reason: 'full' });
     }
@@ -76,6 +87,7 @@ app.post('/join', verifyToken, (req, res) => {
     res.json({ ok: true, username, profile });
 });
 
+// ส่งข้อความ
 app.post('/chat', verifyToken, (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id, text } = req.body;
@@ -90,6 +102,7 @@ app.post('/chat', verifyToken, (req, res) => {
     res.json({ ok: true });
 });
 
+// ดึงข้อความใหม่
 app.get('/poll', verifyToken, (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id, since } = req.query;
@@ -101,6 +114,7 @@ app.get('/poll', verifyToken, (req, res) => {
     res.json({ online: clients.size, messages: newMsgs, serverTime: Date.now() });
 });
 
+// ออกจากห้องแชท
 app.post('/leave', verifyToken, (req, res) => {
     res.header('Access-Control-Allow-Origin', '*');
     const { id } = req.body;
@@ -112,9 +126,10 @@ app.post('/leave', verifyToken, (req, res) => {
     res.json({ ok: true });
 });
 
-// ทุกเส้นทางอื่นให้ไปที่หน้าล็อกอินของเรา
+// เส้นทางหลัก
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}`));
