@@ -3,48 +3,58 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ห้องแชท</title>
+  <title>ห้องแชท Rudjiroad</title>
   <script src="/socket.io/socket.io.js"></script>
-  <!-- เพิ่ม Firebase SDK -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
-    body { background: #1a1a1a; color: #fff; }
-    .login-page { text-align: center; margin-top: 150px; }
-    .login-page h2 { margin-bottom: 30px; color: #ff4444; }
-    .btn { padding: 12px 24px; margin: 10px; font-size: 16px; border-radius: 8px; border: none; cursor: pointer; color: #fff; }
+    body { background: #1a1a1a; color: #fff; min-height: 100vh; }
+    /* หน้าล็อกอิน */
+    .login-container { text-align: center; padding-top: 180px; }
+    .login-container h2 { margin-bottom: 30px; color: #ff4444; font-size: 24px; }
+    .btn { padding: 14px 28px; margin: 10px; font-size: 17px; border-radius: 8px; border: none; cursor: pointer; color: #fff; font-weight: 500; }
     .btn-google { background: #4285F4; }
     .btn-facebook { background: #1877F2; }
-    .chat-page { display: none; max-width: 800px; margin: 0 auto; padding: 20px; }
-    .messages { height: 400px; overflow-y: auto; border: 1px solid #333; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
-    .message { margin-bottom: 10px; }
-    .input-area { display: flex; gap: 10px; }
-    input { flex: 1; padding: 12px; border: 1px solid #333; border-radius: 8px; background: #222; color: #fff; }
-    button { padding: 12px 20px; border: none; border-radius: 8px; background: #28a745; color: #fff; cursor: pointer; }
+    /* หน้าแชท */
+    .chat-container { display: none; max-width: 850px; margin: 0 auto; padding: 25px; }
+    .chat-header { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #333; }
+    .chat-header h3 { font-size: 20px; }
+    .messages-box { height: 420px; overflow-y: auto; border: 1px solid #333; padding: 15px; border-radius: 8px; margin-bottom: 15px; background: #222; }
+    .message { margin-bottom: 12px; line-height: 1.5; }
+    .message strong { color: #4CAF50; margin-right: 8px; }
+    .message span { color: #aaa; font-size: 13px; }
+    .input-group { display: flex; gap: 10px; }
+    .input-group input { flex: 1; padding: 14px; border: 1px solid #444; border-radius: 8px; background: #2a2a2a; color: #fff; font-size: 15px; }
+    .input-group button { padding: 14px 24px; border: none; border-radius: 8px; background: #28a745; color: #fff; font-size: 15px; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div id="loginPage" class="login-page">
+  <!-- หน้าล็อกอิน -->
+  <div id="loginPage" class="login-container">
     <h2>⚠️ กรุณาเข้าสู่ระบบก่อนใช้งานแชท</h2>
-    <button class="btn btn-google" onclick="loginWithGoogle()">เข้าสู่ระบบด้วย Google</button>
+    <button class="btn btn-google" onclick="loginGoogle()">เข้าสู่ระบบด้วย Google</button>
     <br>
-    <button class="btn btn-facebook" onclick="loginWithFacebook()">เข้าสู่ระบบด้วย Facebook</button>
+    <button class="btn btn-facebook" onclick="loginFacebook()">เข้าสู่ระบบด้วย Facebook</button>
   </div>
 
-  <div id="chatPage" class="chat-page">
-    <h3>ยินดีต้อนรับ, <span id="userName"></span></h3>
-    <div id="messages" class="messages"></div>
-    <div class="input-area">
-      <input type="text" id="messageInput" placeholder="พิมพ์ข้อความ...">
-      <button onclick="sendMessage()">ส่ง</button>
+  <!-- หน้าแชท -->
+  <div id="chatPage" class="chat-container">
+    <div class="chat-header">
+      <h3>ยินดีต้อนรับ, <span id="showName"></span></h3>
+    </div>
+    <div id="chatMessages" class="messages-box"></div>
+    <div class="input-group">
+      <input type="text" id="msgInput" placeholder="พิมพ์ข้อความที่นี่..." maxlength="200">
+      <button onclick="sendMsg()">ส่งข้อความ</button>
     </div>
   </div>
 
   <script>
-    // ใส่ค่า firebaseConfig ที่คุณคัดลอกมาจาก Firebase ตรงนี้ครับ
+    // 👇 วางค่า firebaseConfig ที่คุณคัดลอกมาจาก Firebase ตรงนี้ 👇
     const firebaseConfig = {
-      apiKey: "AIzaSyA******",
+      apiKey: "AIzaSyAxxxxxxxxx",
       authDomain: "chat-app-rudjiroad.firebaseapp.com",
       projectId: "chat-app-rudjiroad",
       storageBucket: "chat-app-rudjiroad.appspot.com",
@@ -55,82 +65,78 @@
     // เริ่มต้น Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    let socket, currentUser;
+    let socket, userData;
 
-    // ตรวจสอบสถานะล็อกอิน
+    // ตรวจสอบสถานะเข้าสู่ระบบ
     auth.onAuthStateChanged(user => {
       if (user) {
-        // ล็อกอินสำเร็จ → เปิดห้องแชท
-        currentUser = {
-          name: user.displayName || user.email,
+        // เข้าสู่ระบบสำเร็จ → เปิดหน้าแชท
+        userData = {
+          name: user.displayName || user.email.split('@')[0],
           uid: user.uid,
           avatar: user.photoURL || ""
         };
-        document.getElementById("userName").textContent = currentUser.name;
+        document.getElementById("showName").textContent = userData.name;
         document.getElementById("loginPage").style.display = "none";
         document.getElementById("chatPage").style.display = "block";
-        initChat();
+        connectChat();
       } else {
-        // ยังไม่ล็อกอิน → แสดงหน้าล็อกอิน
+        // ยังไม่เข้าสู่ระบบ → แสดงหน้าล็อกอิน
         document.getElementById("loginPage").style.display = "block";
         document.getElementById("chatPage").style.display = "none";
       }
     });
 
     // ล็อกอินด้วย Google
-    function loginWithGoogle() {
+    function loginGoogle() {
       const provider = new firebase.auth.GoogleAuthProvider();
       auth.signInWithPopup(provider)
         .catch(err => alert("ผิดพลาด: " + err.message));
     }
 
-    // ล็อกอินด้วย Facebook
-    function loginWithFacebook() {
+    // ล็อกอินด้วย Facebook (ถ้ายังไม่ตั้งค่า กดแล้วจะแจ้งเตือน ไม่พังครับ)
+    function loginFacebook() {
       const provider = new firebase.auth.FacebookAuthProvider();
       auth.signInWithPopup(provider)
         .catch(err => alert("ผิดพลาด: " + err.message));
     }
 
-    // เริ่มต้นระบบแชท
-    function initChat() {
+    // เชื่อมต่อระบบแชท
+    function connectChat() {
       socket = io();
-      socket.on("connect", () => {
-        console.log("เชื่อมต่อเซิร์ฟเวอร์สำเร็จ");
-      });
-      socket.on("receive_message", (data) => {
-        addMessage(data);
-      });
+      socket.on("connect", () => console.log("เชื่อมต่อเซิร์ฟเวอร์สำเร็จ"));
+      socket.on("receive_message", (data) => addMsgToBox(data));
     }
 
     // ส่งข้อความ
-    function sendMessage() {
-      const input = document.getElementById("messageInput");
+    function sendMsg() {
+      const input = document.getElementById("msgInput");
       const text = input.value.trim();
       if (!text) return;
-      const message = {
-        name: currentUser.name,
-        uid: currentUser.uid,
+      const msg = {
+        name: userData.name,
+        uid: userData.uid,
         text: text,
-        time: new Date().toLocaleTimeString("th-TH")
+        time: new Date().toLocaleTimeString("th-TH", {hour:'2-digit', minute:'2-digit'})
       };
-      socket.emit("send_message", message);
-      addMessage(message);
+      socket.emit("send_message", msg);
+      addMsgToBox(msg);
       input.value = "";
     }
 
-    // แสดงข้อความ
-    function addMessage(data) {
-      const messagesDiv = document.getElementById("messages");
+    // แสดงข้อความในกล่อง
+    function addMsgToBox(data) {
+      const box = document.getElementById("chatMessages");
       const div = document.createElement("div");
       div.className = "message";
-      div.innerHTML = `<strong>${data.name}</strong> [${data.time}]: ${data.text}`;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      div.innerHTML = `<strong>${data.name}</strong><span>[${data.time}]</span>: ${data.text}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
     }
 
     // กด Enter ส่งข้อความ
-    document.getElementById("messageInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendMessage();
+    document.getElementById("msgInput").addEventListener("keydown", e => {
+      if (e.key === "Enter") sendMsg();
     });
   </script>
 </body>
