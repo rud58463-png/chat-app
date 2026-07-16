@@ -3,7 +3,8 @@ const app = express();
 const path = require("path");
 
 const admin = require("firebase-admin");
-
+console.log("admin =", admin);
+console.log("credential =", admin.credential);
 // โหลด Firebase Key
 let serviceAccount;
 
@@ -22,10 +23,11 @@ try {
 }
 
 // เริ่มต้น Firebase
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+const { initializeApp, cert } = require("firebase-admin/app");
 
+initializeApp({
+  credential: cert(serviceAccount)
+});
 console.log("✅ Firebase Admin พร้อมใช้งาน");
 
 app.use(express.json({ limit: "50mb" })); 
