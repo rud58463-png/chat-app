@@ -127,9 +127,9 @@ app.post('/leave', verifyToken, (req, res) => {
 });
 
 // เส้นทางหลัก
-app.get('/*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+});;
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}`));
