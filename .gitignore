@@ -1,0 +1,7 @@
+# ไม่ส่งไฟล์ความลับ
+serviceAccountKey.json
+.env
+*.key
+
+# ไม่ส่งโฟลเดอร์แพ็กเกจ
+node_modules/
