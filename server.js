@@ -22,11 +22,9 @@ try {
 }
 
 // เริ่มต้น Firebase
-if (admin.apps.length === 0) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-}
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
 
 console.log("✅ Firebase Admin พร้อมใช้งาน");
 
