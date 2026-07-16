@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ห้องแชท Rudjiroad</title>
-  <script src="/socket.io/socket.io.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <style>
@@ -29,7 +28,7 @@
 </head>
 <body>
   <div id="loginPage" class="login-container">
-    <h2> เข้าสู่ระบบก่อนใช้งานแชท</h2>
+    <h2>⚠️ กรุณาเข้าสู่ระบบก่อนใช้งานแชท</h2>
     <button class="btn btn-google" onclick="loginGoogle()">เข้าสู่ระบบด้วย Google</button>
     <br>
     <button class="btn btn-facebook" onclick="loginFacebook()">เข้าสู่ระบบด้วย Facebook</button>
@@ -47,8 +46,9 @@
   </div>
 
   <script>
+    // ใส่ค่า firebaseConfig ของคุณตรงนี้
     const firebaseConfig = {
-      apiKey: "AIzaSyAePzrLqD2kfM7xQZbW8eR9tY7uI6oP5nM4b3V2c1X9z", // 👉 ใส่ apiKey จริงของคุณตรงนี้
+      apiKey: "AIzaSyAePzrLqD2kfM7xQZbW8eR9tY7uI6oP5nM4b3V2c1X9z",
       authDomain: "chat-app-rudjiroad.firebaseapp.com",
       projectId: "chat-app-rudjiroad",
       storageBucket: "chat-app-rudjiroad.appspot.com",
@@ -58,65 +58,101 @@
 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    let socket, userData;
+    let idToken = "";
+    let myId = "id_" + Math.random().toString(36).slice(2);
+    let userData = {};
+    let lastTime = Date.now() - 30000;
 
-    auth.onAuthStateChanged(user => {
+    // ตรวจสอบสถานะล็อกอิน
+    auth.onAuthStateChanged(async user => {
       if (user) {
         userData = {
           name: user.displayName || user.email.split('@')[0],
           uid: user.uid,
-          avatar: user.photoURL || ""
+          avatar: user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
         };
+        // ดึงโทเค็นเพื่อส่งตรวจสอบกับเซิร์ฟเวอร์
+        idToken = await user.getIdToken();
         document.getElementById("showName").textContent = userData.name;
         document.getElementById("loginPage").style.display = "none";
         document.getElementById("chatPage").style.display = "block";
-        connectChat();
+        joinChat();
       } else {
         document.getElementById("loginPage").style.display = "block";
         document.getElementById("chatPage").style.display = "none";
       }
     });
 
+    // ล็อกอิน Google
     function loginGoogle() {
       const provider = new firebase.auth.GoogleAuthProvider();
       auth.signInWithPopup(provider)
         .catch(err => alert("ผิดพลาด: " + err.message));
     }
 
+    // ล็อกอิน Facebook
     function loginFacebook() {
       const provider = new firebase.auth.FacebookAuthProvider();
       auth.signInWithPopup(provider)
         .catch(err => alert("ผิดพลาด: " + err.message));
     }
 
-    function connectChat() {
-      socket = io();
-      socket.on("connect", () => console.log("เชื่อมต่อเซิร์ฟเวอร์สำเร็จ"));
-      socket.on("receive_message", (data) => addMsgToBox(data));
+    // เชื่อมต่อห้องแชท
+    function xhr(method, url, data, cb) {
+      const x = new XMLHttpRequest();
+      x.open(method, url, true);
+      x.timeout = 5000;
+      x.setRequestHeader("Authorization", `Bearer ${idToken}`);
+      if (method === "POST") x.setRequestHeader("Content-Type", "application/json");
+      x.onreadystatechange = function() {
+        if (x.readyState === 4) {
+          try { cb(JSON.parse(x.responseText)); } catch(e) { cb(null); }
+        }
+      };
+      x.onerror = () => cb(null);
+      x.send(data ? JSON.stringify(data) : null);
+    }
+
+    function joinChat() {
+      xhr("POST", "/join", { id: myId }, res => {
+        if (res && res.ok) {
+          startPolling();
+        } else {
+          alert("เข้าร่วมห้องแชทไม่สำเร็จ: " + (res?.reason || "ไม่ทราบสาเหตุ"));
+        }
+      });
     }
 
     function sendMsg() {
       const input = document.getElementById("msgInput");
       const text = input.value.trim();
       if (!text) return;
-      const msg = {
-        name: userData.name,
-        uid: userData.uid,
-        text: text,
-        time: new Date().toLocaleTimeString("th-TH", {hour:'2-digit', minute:'2-digit'})
-      };
-      socket.emit("send_message", msg);
-      addMsgToBox(msg);
       input.value = "";
+      xhr("POST", "/chat", { id: myId, text }, res => {
+        if (!res || !res.ok) alert("ส่งข้อความไม่สำเร็จ");
+      });
     }
 
-    function addMsgToBox(data) {
-      const box = document.getElementById("chatMessages");
-      const div = document.createElement("div");
-      div.className = "message";
-      div.innerHTML = `<strong>${data.name}</strong><span>[${data.time}]</span>: ${data.text}`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
+    function poll() {
+      xhr("GET", `/poll?id=${myId}&since=${lastTime}`, null, data => {
+        if (!data) return;
+        if (data.messages.length > 0) {
+          data.messages.forEach(m => {
+            const box = document.getElementById("chatMessages");
+            const div = document.createElement("div");
+            div.className = "message";
+            div.innerHTML = `<strong>${m.username}</strong><span>[${new Date(m.time).toLocaleTimeString("th-TH", {hour:'2-digit', minute:'2-digit'})}]</span>: ${m.text}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+            if (m.time > lastTime) lastTime = m.time;
+          });
+        }
+      });
+    }
+
+    function startPolling() {
+      poll();
+      setInterval(poll, 1500);
     }
 
     document.getElementById("msgInput").addEventListener("keydown", e => {
