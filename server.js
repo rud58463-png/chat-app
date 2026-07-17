@@ -22,8 +22,10 @@ try {
 }
 
 // เริ่มต้น Firebase
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+const { initializeApp, cert } = require("firebase-admin/app");
+
+initializeApp({
+  credential: cert(serviceAccount)
 });
 
 console.log("✅ Firebase Admin พร้อมใช้งาน");
