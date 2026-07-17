@@ -5,17 +5,23 @@ const admin = require('firebase-admin');
 
 // ✅ ซ่อมรูปแบบคีย์ Firebase ให้ถูกต้องโดยอัตโนมัติ
 let serviceAccount;
-
 try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    console.log("✅ โหลด Firebase จาก Environment");
+  const rawKey = process.env.FIREBASE_SERVICE_ACCOUNT || '';
+  if (rawKey.trim()) {
+    // แก้ไขอักขระขึ้นบรรทัดใหม่และเครื่องหมายพิเศษที่ผิดรูปแบบ
+    const fixedKey = rawKey
+      .replace(/\\n/g, '\n')
+      .replace(/\\\r/g, '')
+      .replace(/\\"/g, '"')
+      .trim();
+    serviceAccount = JSON.parse(fixedKey);
+    console.log("✅ โหลดคีย์ Firebase จากตัวแปรสภาพแวดล้อมสำเร็จ");
   } else {
     serviceAccount = require("./serviceAccountKey.json");
-    console.log("✅ โหลด Firebase จากไฟล์");
+    console.log("✅ โหลดคีย์ Firebase จากไฟล์ในเครื่องสำเร็จ");
   }
 } catch (err) {
-  console.error("❌ โหลดคีย์ Firebase ไม่สำเร็จ:", err);
+  console.error("❌ โหลดคีย์ Firebase ไม่สำเร็จ:", err.message);
   process.exit(1);
 }
 
@@ -126,10 +132,10 @@ app.post('/leave', verifyToken, (req, res) => {
     res.json({ ok: true });
 });
 
-// เส้นทางหลัก
-app.use((req, res) => {
+// เส้นทางหลัก — แก้เครื่องหมาย ; ที่เกินมา
+app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});;
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}`));
