@@ -93,36 +93,34 @@
       document.getElementById("btnGoogle").disabled = true;
       document.getElementById("btnFacebook").disabled = true;
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithRedirect(provider)
+      auth.signInWithPopup(provider)
         .catch(err => {
+          alert("ผิดพลาด: " + err.message);
+        })
+        .finally(() => {
           loginInProgress = false;
           document.getElementById("btnGoogle").disabled = false;
           document.getElementById("btnFacebook").disabled = false;
-          alert("ผิดพลาด: " + err.message);
         });
     }
 
-    // ล็อกอิน Facebook (ใช้ redirect แทน popup เพื่อความเสถียรบนมือถือ)
+    // ล็อกอิน Facebook
     function loginFacebook() {
       if (loginInProgress) return;
       loginInProgress = true;
       document.getElementById("btnGoogle").disabled = true;
       document.getElementById("btnFacebook").disabled = true;
       const provider = new firebase.auth.FacebookAuthProvider();
-      auth.signInWithRedirect(provider)
+      auth.signInWithPopup(provider)
         .catch(err => {
+          alert("ผิดพลาด: " + err.message);
+        })
+        .finally(() => {
           loginInProgress = false;
           document.getElementById("btnGoogle").disabled = false;
           document.getElementById("btnFacebook").disabled = false;
-          alert("ผิดพลาด: " + err.message);
         });
     }
-
-    // รับผลลัพธ์หลังจาก redirect กลับมา (จำเป็นสำหรับ signInWithRedirect)
-    auth.getRedirectResult()
-      .catch(err => {
-        if (err && err.message) alert("ผิดพลาดตอนล็อกอิน: " + err.message);
-      });
 
     // เชื่อมต่อห้องแชท
     function xhr(method, url, data, cb) {
