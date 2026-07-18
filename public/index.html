@@ -29,9 +29,9 @@
 <body>
   <div id="loginPage" class="login-container">
     <h2>⚠️ อยู่ระหว่างพัฒนา</h2>
-    <button class="btn btn-google" onclick="loginGoogle()">เข้าสู่ระบบด้วย Google</button>
+    <button class="btn btn-google" id="btnGoogle" onclick="loginGoogle()">เข้าสู่ระบบด้วย Google</button>
     <br>
-    <button class="btn btn-facebook" onclick="loginFacebook()">เข้าสู่ระบบด้วย Facebook</button>
+    <button class="btn btn-facebook" id="btnFacebook" onclick="loginFacebook()">เข้าสู่ระบบด้วย Facebook</button>
   </div>
 
   <div id="chatPage" class="chat-container">
@@ -83,19 +83,46 @@
       }
     });
 
-    // ล็อกอิน Google
+    // ป้องกันการกดปุ่มซ้ำระหว่างรอผลลัพธ์
+    let loginInProgress = false;
+
+    // ล็อกอิน Google (ใช้ redirect แทน popup เพื่อความเสถียรบนมือถือ)
     function loginGoogle() {
+      if (loginInProgress) return;
+      loginInProgress = true;
+      document.getElementById("btnGoogle").disabled = true;
+      document.getElementById("btnFacebook").disabled = true;
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider)
-        .catch(err => alert("ผิดพลาด: " + err.message));
+      auth.signInWithRedirect(provider)
+        .catch(err => {
+          loginInProgress = false;
+          document.getElementById("btnGoogle").disabled = false;
+          document.getElementById("btnFacebook").disabled = false;
+          alert("ผิดพลาด: " + err.message);
+        });
     }
 
-    // ล็อกอิน Facebook
+    // ล็อกอิน Facebook (ใช้ redirect แทน popup เพื่อความเสถียรบนมือถือ)
     function loginFacebook() {
+      if (loginInProgress) return;
+      loginInProgress = true;
+      document.getElementById("btnGoogle").disabled = true;
+      document.getElementById("btnFacebook").disabled = true;
       const provider = new firebase.auth.FacebookAuthProvider();
-      auth.signInWithPopup(provider)
-        .catch(err => alert("ผิดพลาด: " + err.message));
+      auth.signInWithRedirect(provider)
+        .catch(err => {
+          loginInProgress = false;
+          document.getElementById("btnGoogle").disabled = false;
+          document.getElementById("btnFacebook").disabled = false;
+          alert("ผิดพลาด: " + err.message);
+        });
     }
+
+    // รับผลลัพธ์หลังจาก redirect กลับมา (จำเป็นสำหรับ signInWithRedirect)
+    auth.getRedirectResult()
+      .catch(err => {
+        if (err && err.message) alert("ผิดพลาดตอนล็อกอิน: " + err.message);
+      });
 
     // เชื่อมต่อห้องแชท
     function xhr(method, url, data, cb) {
