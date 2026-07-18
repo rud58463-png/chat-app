@@ -125,4 +125,7 @@ app.post('/leave', verifyToken, (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}));
+
+app.listen(PORT, () => {
+  console.log(`✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}`);
+});
