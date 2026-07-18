@@ -29,6 +29,7 @@
       box-shadow: 0 20px 40px rgba(0,0,0,0.4);
       width: 90%;
       max-width: 400px;
+      display: block;
     }
     .login-container h2 { 
       margin-bottom: 10px; 
@@ -122,7 +123,7 @@
       gap: 15px;
     }
 
-    /* กล่องข้อความสไตล์แอปโมเดิร์น */
+    /* กล่องข้อความ */
     .message-wrapper {
       display: flex;
       gap: 10px;
@@ -253,7 +254,6 @@
   </div>
 
   <script>
-    // การตั้งค่า Firebase Config ของคุณ
     const firebaseConfig = {
       apiKey: "AIzaSyAM9dWJ2EQlJbESwB5FSxb4Q_OH2OG0G1k",
       authDomain: "chat-app-rudjiroad.firebaseapp.com",
@@ -265,6 +265,10 @@
 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+    
+    // ตั้งค่า Persistence ให้รองรับสภาพแวดล้อมปิดแบบในแอป (IndexedDB)
+    auth.setPersistence(firebase.auth.Auth.Persistence.INDEXEDDB).catch(err => console.log("Persistence Error ignored"));
+
     let idToken = "";
     let myId = "id_" + Math.random().toString(36).slice(2);
     let userData = {};
@@ -286,19 +290,13 @@
       } else {
         document.getElementById("loginPage").style.display = "block";
         document.getElementById("chatPage").style.display = "none";
+        
+        // ย้ายการเช็ค Redirect มาไว้ตรงนี้ เพื่อป้องกันการบล็อกหน้าจอตอนโหลดครั้งแรกในสภาพแวดล้อมที่ไม่มีสิทธิ์เข้าถึง storage
+        auth.getRedirectResult().catch(err => {
+          console.log("Redirect check status:", err.message);
+        });
       }
     });
-
-    // รับผลการ Redirect ล็อกอิน
-    auth.getRedirectResult()
-      .then((result) => {
-        if (result && result.user) {
-          console.log("Redirect Login Successful");
-        }
-      })
-      .catch((err) => {
-        alert("การยืนยันตัวตนผิดพลาด: " + err.message);
-      });
 
     let loginInProgress = false;
 
@@ -308,10 +306,9 @@
       document.getElementById("btnGoogle").disabled = true;
       
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithRedirect(provider); // ใช้ Redirect เพื่อความเสถียรบนโมบายเว็บบราวเซอร์
+      auth.signInWithRedirect(provider);
     }
 
-    // ฟังก์ชันเชื่อมต่อเครือข่าย
     function xhr(method, url, data, cb) {
       const x = new XMLHttpRequest();
       x.open(method, url, true);
@@ -350,15 +347,12 @@
     function poll() {
       xhr("GET", `/poll?id=${myId}&since=${lastTime}`, null, data => {
         if (!data) return;
-        
-        // อัปเดตจำนวนผู้ใช้เปิดออนไลน์อยู่
         if(data.online) document.getElementById("onlineCount").textContent = data.online;
 
         if (data.messages && data.messages.length > 0) {
           const box = document.getElementById("chatMessages");
           
           data.messages.forEach(m => {
-            // เช็คว่าเป็นข้อความของตัวเราเองหรือไม่ เพื่อจัดฝั่งแชท
             const isMe = (m.username === userData.name);
             const wrapper = document.createElement("div");
             wrapper.className = `message-wrapper ${isMe ? 'me' : 'other'}`;
