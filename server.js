@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // เพิ่มตัวนี้เพื่อให้รับข้อมูลจากฟอร์มได้ทุกรูปแบบ
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // โหลด Firebase Key
@@ -37,7 +37,7 @@ initializeApp({
 // ตั้งค่า Google GenAI SDK
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// รองรับ Endpoint /join (ดักจับทุกชื่อตัวแปรที่หน้าเว็บส่งมา ป้องกัน undefined)
+// รองรับ Endpoint /join
 app.post('/join', async (req, res) => {
     try {
         console.log("ข้อมูลที่ส่งเข้ามาที่ /join:", req.body);
@@ -49,14 +49,14 @@ app.post('/join', async (req, res) => {
     }
 });
 
-// Endpoint /chat (ดักจับทุกชื่อตัวแปรเช่นกัน)
+// Endpoint /chat (แก้จุดพิมพ์ผิดจาก return.status เป็น return res.status แล้วครับ)
 app.post('/chat', async (req, res) => {
     try {
         console.log("ข้อมูลที่ส่งเข้ามาที่ /chat:", req.body);
         const message = req.body.message || req.body.prompt || req.body.text || req.body.msg;
 
         if (!message) {
-            return.status(400).json({ error: "กรุณาระบุข้อความ" });
+            return res.status(400).json({ error: "กรุณาระบุข้อความ" });
         }
 
         // เรียกใช้งาน Gemini
