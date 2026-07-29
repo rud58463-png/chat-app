@@ -10,8 +10,10 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
+    "@google/genai": "^2.13.0",
+    "dotenv": "^16.6.1",
     "express": "^5.2.1",
     "firebase-admin": "^13.10.0",
     "ws": "^8.20.1"

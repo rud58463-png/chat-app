@@ -1,131 +1,65 @@
-const express = require("express");
-const app = express();
-const path = require("path");
+import 'dotenv/config';
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module'; 
+import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { GoogleGenAI } from '@google/genai';
 
-const admin = require("firebase-admin");
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 // โหลด Firebase Key
 let serviceAccount;
-
 try {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    console.log("✅ โหลด Firebase จาก Environment");
-  } else {
-    serviceAccount = require("./serviceAccountKey.json");
-    console.log("✅ โหลด Firebase จากไฟล์");
-  }
-} catch (err) {
-  console.error("❌ โหลดคีย์ Firebase ไม่สำเร็จ");
-  console.error(err);
-  process.exit(1);
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        console.log("โหลด Firebase จาก Environment สำเร็จ");
+    } else {
+        serviceAccount = require('./serviceAccountKey.json');
+        console.log("โหลด Firebase จากไฟล์ serviceAccountKey.json สำเร็จ");
+    }
+} catch (error) {
+    console.error("ไม่สามารถโหลด Firebase Key ได้:", error);
 }
-
-// เริ่มต้น Firebase
-const { initializeApp, cert } = require("firebase-admin/app");
 
 initializeApp({
-  credential: cert(serviceAccount)
+    credential: cert(serviceAccount)
 });
 
-console.log("✅ Firebase Admin พร้อมใช้งาน");
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-// ให้เซิร์ฟเวอร์แสดงไฟล์ในโฟลเดอร์ public
-app.use(express.static(path.join(__dirname, 'public')));
+// ตั้งค่า Google GenAI SDK (ระบบจะดึง GEMINI_API_KEY จาก process.env โดยอัตโนมัติ)
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-const messages = [];
-const clients = new Map();
-const joinedUsers = new Set();
+// ตัวอย่าง Endpoint สำหรับคุยกับแชทบอท พร้อมกำหนด Persona (System Instruction)
+app.post('/api/chat', async (req, res) => {
+    try {
+        const { message } = req.body;
 
-// ตรวจสอบสิทธิ์ด้วย Firebase Token
-async function verifyToken(req, res, next) {
-const idToken = req.headers.authorization?.split(' ')[1];
-if (!idToken) return res.status(401).json({ ok: false, reason: 'unauthorized' });
+        // เรียกใช้งาน Gemini รุ่นล่าสุด (gemini-2.5-flash หรือ gemini-2.5-pro)
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: message,
+            config: {
+                // กำหนด Persona / ตัวตนของ AI ตรงนี้ครับ
+                systemInstruction: "คุณชื่อ 'ลูเมน (Lumen)' เป็นผู้ช่วย AI อัจฉริยะที่ใจดี เป็นกันเอง และมีความรู้รอบตัวสูง คอยช่วยเหลือผู้ใช้อย่างกระตือรือร้น",
+                temperature: 0.7,
+            }
+        });
 
-try {
-const decodedToken = await admin.auth().verifyIdToken(idToken);
-req.user = decodedToken;
-next();
- } catch (err) {
-     console.error("❌ ตรวจสอบโทเค็นไม่ผ่าน:", err.message);
-     return res.status(401).json({ ok: false, reason: 'invalid_token' });
- }
-}
-// ตรวจจับคนออกจากห้องแชทแบบ Real-time
-setInterval(() => {
-    const now = Date.now();
-    for(const [id, c] of clients){
-        if(now - c.lastSeen > 4000) {
-               joinedUsers.delete(c.username);
-               clients.delete(id);
-        }
+        res.json({ reply: response.text });
+    } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        res.status(500).json({ error: "เกิดข้อผิดพลาดในการประมวลผล" });
     }
-}, 2000);
-
-// เข้าร่วมห้องแชท
-app.post('/join', verifyToken, (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    const { id } = req.body;
-    const firebaseUser = req.user;
-    if(!id) return res.json({ ok: false, reason: 'invalid_access' });
-    const username = firebaseUser.name || firebaseUser.email.split('@')[0];
-    const profile = firebaseUser.picture || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'
-    const uid = firebaseUser.uid;
-    if (!clients.has(id) && !joinedUsers.has(username) && joinedUsers.size >= 28) {
-    return res.json({ ok: false, reason: 'full' }); 
-    }
-    if(messages.length > 200) messages.shift();
-
-    clients.set(id, {
-          username: username,
-          profile: profile,
-          uid: uid,
-          lastSeen: Date.now()
-      });
-      res.json({ ok: true, username, profile }); 
-});
-
-// ส่งข้อความ
-app.post('/chat', verifyToken, (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    const { id, text } = req.body;
-    const user = clients.get(id);
-
-    if(!user || !text) return res.json({ ok: false });
-    
-    user.lastSeen = Date.now();
-    messages.push({ type:'message', username: user.username, profile: user.profile, text, time: Date.now() });
-
-     if(messages.length > 200) messages.shift();
-     res.json({ ok: true }); 
-});
-
-// ดึงข้อความใหม่
-app.get('/poll', verifyToken, (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    const { id, since } = req.query;
-    if(clients.has(id)) clients.get(id).lastSeen = Date.now();
- 
-    const sinceTime = parseInt(since) || 0;
-    const newMsgs = messages.filter(m => m.time > sinceTime);
-    res.json({ online: clients.size, messages: newMsgs, serverTime: Date.now() });
-});
-2
-// ออกจากห้องแชท
-app.post('/leave', verifyToken, (req, res) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    const { id } = req.body;
-    if(clients.has(id)) {
-            const user = clients.get(id);
-             joinedUsers.delete(user.username);
-              clients.delete(id);
-     }
-      res.json({ ok: true });
 });
 
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
-  console.log(`✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });

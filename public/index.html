@@ -229,8 +229,8 @@
 
   <!-- หน้าล็อกอินใหม่ -->
   <div id="loginPage" class="login-container">
-    <h2>ห้องแชท Rudjiroad</h2>
-    <p>ระบบอยู่ในช่วงทดสอบระบบร่วมกันสร้างสังคมออนไลน์ที่ดี</p>
+    <h2>MyChat Room</h2>
+   
     <button class="btn-google" id="btnGoogle" onclick="loginGoogle()">
       <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="Google">
       เข้าสู่ระบบด้วย Google
@@ -339,8 +339,40 @@
       const text = input.value.trim();
       if (!text) return;
       input.value = "";
+
+      // 1. ส่งข้อความของผู้ใช้เข้าห้องแชทผ่านเซิร์ฟเวอร์เดิม
       xhr("POST", "/chat", { id: myId, text }, res => {
-        if (!res || !res.ok) alert("ส่งข้อความไม่สำเร็จ");
+        if (!res || !res.ok) {
+          alert("ส่งข้อความไม่สำเร็จ");
+          return;
+        }
+
+        // 2. ตรวจสอบว่าผู้ใช้เรียกหา AI หรือพิมพ์คุยทั่วไปไหม (หรือจะให้ส่งหา Lumen ทุกข้อความก็ได้ครับ)
+        // ในที่นี้เราจะให้ส่งเข้า AI (ลูเมน) ทุกครั้งที่มีการพิมพ์ข้อความ เพื่อความสะดวกในการคุยเล่นครับ
+        fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`
+          },
+          body: JSON.stringify({ message: text })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.reply) {
+            // 3. จำลองข้อความตอบกลับจาก "ลูเมน" เข้าสู่ระบบแชท
+            // ส่งข้อความในนามของ Lumen ผ่านเซิร์ฟเวอร์แชทห้องเดียวกัน
+            xhr("POST", "/chat", { 
+              id: "ai_lumen_bot", 
+              text: data.reply,
+              // หมายเหตุ: หากระบบหลังบ้านรองรับการระบุชื่อผู้ส่งจำลอง สามารถปรับตรงนี้ได้เลย 
+              // หรือให้ Server หลังบ้านจัดการบอทตอบกลับอัตโนมัติ
+            }, () => {});
+          }
+        })
+        .catch(err => {
+          console.error("Error communicating with Lumen:", err);
+        });
       });
     }
 
