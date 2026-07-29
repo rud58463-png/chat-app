@@ -37,29 +37,77 @@ initializeApp({
 // ตั้งค่า Google GenAI SDK
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// รองรับ Endpoint /join
+// เก็บข้อมูลห้องแชทและข้อความในหน่วยความจำชั่วคราว
+let onlineUsers = new Map();
+let messages = [];
+
+// 1. รองรับ /join (ปรับให้ส่งค่า ok: true กลับไปให้ตรงกับเงื่อนไขหน้าเว็บ)
 app.post('/join', async (req, res) => {
     try {
-        console.log("ข้อมูลที่ส่งเข้ามาที่ /join:", req.body);
-        const username = req.body.username || req.body.name || req.body.user || "Guest";
-        res.json({ success: true, message: "เข้าระบบสำเร็จ", username });
+        const { id } = req.body;
+        onlineUsers.set(id, Date.now());
+        console.log("ผู้ใช้เข้าระบบ ID:", id);
+        return res.json({ ok: true, message: "เข้าระบบสำเร็จ" });
     } catch (error) {
         console.error("Error joining chat:", error);
-        res.status(500).json({ error: "ไม่สามารถเข้าห้องแชทได้เนื่องจากเซิร์ฟเวอร์ขัดข้อง" });
+        return res.status(500).json({ ok: false, reason: "เซิร์ฟเวอร์ขัดข้อง" });
     }
 });
 
-// Endpoint /chat (แก้จุดพิมพ์ผิดจาก return.status เป็น return res.status แล้วครับ)
+// 2. รองรับ /chat สำหรับรับส่งข้อความในห้องแชท
 app.post('/chat', async (req, res) => {
     try {
-        console.log("ข้อมูลที่ส่งเข้ามาที่ /chat:", req.body);
-        const message = req.body.message || req.body.prompt || req.body.text || req.body.msg;
+        const { id, text } = req.body;
+        if (!text) return res.status(400).json({ ok: false });
+
+        const newMessage = {
+            id: Math.random().toString(36).substring(2),
+            username: id === "ai_lumen_bot" ? "ลูเมน (Lumen)" : "ผู้ใช้งาน",
+            text: text,
+            time: Date.now(),
+            profile: id === "ai_lumen_bot" ? "https://cdn-icons-png.flaticon.com/512/4712/4712109.png" : undefined
+        };
+
+        messages.push(newMessage);
+        if (messages.length > 50) messages.shift(); // เก็บประวัติไว้ 50 ข้อความล่าสุด
+
+        return res.json({ ok: true });
+    } catch (error) {
+        console.error("Error in /chat:", error);
+        return res.status(500).json({ ok: false });
+    }
+});
+
+// 3. รองรับ /poll สำหรับดึงข้อความใหม่และจำนวนคนออนไลน์
+app.get('/poll', (req, res) => {
+    const { id, since } = req.query;
+    if (id) onlineUsers.set(id, Date.now());
+
+    // ลบคนที่ไม่ได้ active เกิน 10 วินาทีออก
+    const now = Date.now();
+    for (let [userId, time] of onlineUsers.entries()) {
+        if (now - time > 10000) onlineUsers.delete(userId);
+    }
+
+    const sinceTime = parseInt(since) || 0;
+    const newMessages = messages.filter(m => m.time > sinceTime);
+
+    res.json({
+        online: onlineUsers.size || 1,
+        messages: newMessages
+    });
+});
+
+// 4. รองรับ /api/chat สำหรับคุยกับ Gemini AI (ลูเมน) ตรงกับที่หน้าเว็บเรียกใช้งาน
+app.post('/api/chat', async (req, res) => {
+    try {
+        const message = req.body.message || req.body.prompt;
+        console.log("ข้อความคุยกับ AI:", message);
 
         if (!message) {
-            return res.status(400).json({ error: "กรุณาระบุข้อความ" });
+            return.status(400).json({ error: "กรุณาระบุข้อความ" });
         }
 
-        // เรียกใช้งาน Gemini
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: message,
@@ -73,7 +121,7 @@ app.post('/chat', async (req, res) => {
 
         res.json({ reply: replyText || "ขออภัย ฉันไม่สามารถประมวลผลคำตอบได้ในขณะนี้" });
     } catch (error) {
-        console.error("Error calling Gemini API Detail:", error);
+        console.error("Error calling Gemini API:", error);
         res.status(500).json({ error: "เกิดข้อผิดพลาดในการประมวลผลจากเซิร์ฟเวอร์" });
     }
 });
