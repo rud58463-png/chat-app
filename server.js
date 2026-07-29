@@ -41,12 +41,11 @@ app.post('/api/chat', async (req, res) => {
     try {
         const { message } = req.body;
 
-        // เรียกใช้งาน Gemini รุ่นล่าสุด (gemini-2.5-flash หรือ gemini-2.5-pro)
+        // เรียกใช้งาน Gemini รุ่นล่าสุด
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: message,
             config: {
-                // กำหนด Persona / ตัวตนของ AI ตรงนี้ครับ
                 systemInstruction: "คุณชื่อ 'ลูเมน (Lumen)' เป็นผู้ช่วย AI อัจฉริยะที่ใจดี เป็นกันเอง และมีความรู้รอบตัวสูง คอยช่วยเหลือผู้ใช้อย่างกระตือรือร้น",
                 temperature: 0.7,
             }
