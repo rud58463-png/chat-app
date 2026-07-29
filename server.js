@@ -47,11 +47,15 @@ app.post('/join', async (req, res) => {
     }
 });
 
-// ปรับ Endpoint เป็น /chat ให้ตรงกับที่หน้าเว็บ (Frontend) เรียกใช้งาน
+// Endpoint /chat สำหรับคุยกับ Gemini
 app.post('/chat', async (req, res) => {
     try {
-        // รองรับทั้งคีย์ message หรือข้อความจากฟอร์มหน้าเว็บ
         const message = req.body.message || req.body.prompt;
+        console.log(" nhậnข้อความจากผู้ใช้:", message);
+
+        if (!message) {
+            return res.status(400).json({ error: "กรุณาระบุข้อความ" });
+        }
 
         // เรียกใช้งาน Gemini รุ่นล่าสุด
         const response = await ai.models.generateContent({
@@ -63,10 +67,13 @@ app.post('/chat', async (req, res) => {
             }
         });
 
-        res.json({ reply: response.text });
+        // ดึงข้อความตอบกลับจากโครงสร้าง response
+        const replyText = response.text || (response.candidates && response.candidates[0]?.content?.parts[0]?.text);
+
+        res.json({ reply: replyText || "ขออภัย ฉันไม่สามารถประมวลผลคำตอบได้ในขณะนี้" });
     } catch (error) {
-        console.error("Error calling Gemini API:", error);
-        res.status(500).json({ error: "เกิดข้อผิดพลาดในการประมวลผล" });
+        console.error("Error calling Gemini API Detail:", error);
+        res.status(500).json({ error: "เกิดข้อผิดพลาดในการประมวลผลจากเซิร์ฟเวอร์" });
     }
 });
 
