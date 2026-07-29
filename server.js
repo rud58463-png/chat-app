@@ -41,7 +41,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 let onlineUsers = new Map();
 let messages = [];
 
-// 1. รองรับ /join (ปรับให้ส่งค่า ok: true กลับไปให้ตรงกับเงื่อนไขหน้าเว็บ)
+// 1. รองรับ /join
 app.post('/join', async (req, res) => {
     try {
         const { id } = req.body;
@@ -69,7 +69,7 @@ app.post('/chat', async (req, res) => {
         };
 
         messages.push(newMessage);
-        if (messages.length > 50) messages.shift(); // เก็บประวัติไว้ 50 ข้อความล่าสุด
+        if (messages.length > 50) messages.shift();
 
         return res.json({ ok: true });
     } catch (error) {
@@ -83,7 +83,6 @@ app.get('/poll', (req, res) => {
     const { id, since } = req.query;
     if (id) onlineUsers.set(id, Date.now());
 
-    // ลบคนที่ไม่ได้ active เกิน 10 วินาทีออก
     const now = Date.now();
     for (let [userId, time] of onlineUsers.entries()) {
         if (now - time > 10000) onlineUsers.delete(userId);
@@ -98,14 +97,14 @@ app.get('/poll', (req, res) => {
     });
 });
 
-// 4. รองรับ /api/chat สำหรับคุยกับ Gemini AI (ลูเมน) ตรงกับที่หน้าเว็บเรียกใช้งาน
+// 4. รองรับ /api/chat สำหรับคุยกับ Gemini AI (แก้ return.status เป็น return res.status เรียบร้อย)
 app.post('/api/chat', async (req, res) => {
     try {
         const message = req.body.message || req.body.prompt;
         console.log("ข้อความคุยกับ AI:", message);
 
         if (!message) {
-            return.status(400).json({ error: "กรุณาระบุข้อความ" });
+            return res.status(400).json({ error: "กรุณาระบุข้อความ" });
         }
 
         const response = await ai.models.generateContent({
@@ -120,13 +119,8 @@ app.post('/api/chat', async (req, res) => {
         const replyText = response.text || (response.candidates && response.candidates[0]?.content?.parts[0]?.text);
 
         res.json({ reply: replyText || "ขออภัย ฉันไม่สามารถประมวลผลคำตอบได้ในขณะนี้" });
-    } catch (error) {
+    } the catch (error) { // ตรวจสอบโครงสร้าง try-catch ให้ถูกต้อง
         console.error("Error calling Gemini API:", error);
         res.status(500).json({ error: "เกิดข้อผิดพลาดในการประมวลผลจากเซิร์ฟเวอร์" });
     }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
 });
