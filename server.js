@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // เพิ่มตัวนี้เพื่อให้รับข้อมูลจากฟอร์มได้ทุกรูปแบบ
 app.use(express.static(path.join(__dirname, 'public')));
 
 // โหลด Firebase Key
@@ -36,10 +37,11 @@ initializeApp({
 // ตั้งค่า Google GenAI SDK
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// รองรับ Endpoint /join สำหรับเข้าห้องแชท
+// รองรับ Endpoint /join (ดักจับทุกชื่อตัวแปรที่หน้าเว็บส่งมา ป้องกัน undefined)
 app.post('/join', async (req, res) => {
     try {
-        const { username } = req.body;
+        console.log("ข้อมูลที่ส่งเข้ามาที่ /join:", req.body);
+        const username = req.body.username || req.body.name || req.body.user || "Guest";
         res.json({ success: true, message: "เข้าระบบสำเร็จ", username });
     } catch (error) {
         console.error("Error joining chat:", error);
@@ -47,17 +49,17 @@ app.post('/join', async (req, res) => {
     }
 });
 
-// Endpoint /chat สำหรับคุยกับ Gemini
+// Endpoint /chat (ดักจับทุกชื่อตัวแปรเช่นกัน)
 app.post('/chat', async (req, res) => {
     try {
-        const message = req.body.message || req.body.prompt;
-        console.log(" nhậnข้อความจากผู้ใช้:", message);
+        console.log("ข้อมูลที่ส่งเข้ามาที่ /chat:", req.body);
+        const message = req.body.message || req.body.prompt || req.body.text || req.body.msg;
 
         if (!message) {
-            return res.status(400).json({ error: "กรุณาระบุข้อความ" });
+            return.status(400).json({ error: "กรุณาระบุข้อความ" });
         }
 
-        // เรียกใช้งาน Gemini รุ่นล่าสุด
+        // เรียกใช้งาน Gemini
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: message,
@@ -67,7 +69,6 @@ app.post('/chat', async (req, res) => {
             }
         });
 
-        // ดึงข้อความตอบกลับจากโครงสร้าง response
         const replyText = response.text || (response.candidates && response.candidates[0]?.content?.parts[0]?.text);
 
         res.json({ reply: replyText || "ขออภัย ฉันไม่สามารถประมวลผลคำตอบได้ในขณะนี้" });
