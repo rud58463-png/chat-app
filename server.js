@@ -36,7 +36,19 @@ initializeApp({
 // ตั้งค่า Google GenAI SDK (ระบบจะดึง GEMINI_API_KEY จาก process.env โดยอัตโนมัติ)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// ตัวอย่าง Endpoint สำหรับคุยกับแชทบอท พร้อมกำหนด Persona (System Instruction)
+// เพิ่ม Endpoint /join เพื่อรองรับการเข้าห้องแชทจากหน้าบ้าน (แก้ปัญหา Error 404)
+app.post('/join', async (req, res) => {
+    try {
+        const { username } = req.body;
+        // คุณสามารถเพิ่มตรรกะตรวจสอบหรือบันทึกข้อมูลผู้เข้าห้องลง Firebase ตรงนี้ได้
+        res.json({ success: true, message: "เข้าระบบสำเร็จ", username });
+    } catch (error) {
+        console.error("Error joining chat:", error);
+        res.status(500).json({ error: "ไม่สามารถเข้าห้องแชทได้เนื่องจากเซิร์ฟเวอร์ขัดข้อง" });
+    }
+});
+
+// Endpoint สำหรับคุยกับแชทบอท พร้อมกำหนด Persona (System Instruction)
 app.post('/api/chat', async (req, res) => {
     try {
         const { message } = req.body;
