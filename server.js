@@ -35,7 +35,7 @@ initializeApp({
 let onlineUsers = new Map();
 let messages = [];
 
-// 1. รองรับการเข้าระบบ (Login)
+// 1. รองรับการเข้าระบบ (Login) และรับรูปโปรไฟล์
 app.post('/join', async (req, res) => {
     try {
         const { id } = req.body;
@@ -49,21 +49,22 @@ app.post('/join', async (req, res) => {
     }
 });
 
-// 2. รองรับการส่งข้อความเข้าห้องแชท (แบบไม่มี AI แล้ว)
+// 2. รองรับการส่งข้อความ พร้อมแนบรูปโปรไฟล์ (Profile Picture)
 app.post('/chat', async (req, res) => {
     try {
-        const { id, text } = req.body;
+        const { id, text, profile } = req.body;
         if (!text) return res.status(400).json({ ok: false });
 
         const newMessage = {
             id: Math.random().toString(36).substring(2),
             username: id || "ผู้ใช้งาน",
             text: text,
+            profile: profile || null, // แนบรูปโปรไฟล์มาแสดงในแชท
             time: Date.now()
         };
 
         messages.push(newMessage);
-        if (messages.length > 50) messages.shift(); // เก็บข้อความล่าสุดไว้ 50 ข้อความ
+        if (messages.length > 50) messages.shift();
 
         return res.json({ ok: true });
     } catch (error) {
@@ -77,7 +78,6 @@ app.get('/poll', (req, res) => {
     const { id, since } = req.query;
     if (id) onlineUsers.set(id, Date.now());
 
-    // ล้างรายชื่อคนที่ไม่ได้ active เกิน 10 วินาทีออก
     const now = Date.now();
     for (let [userId, time] of onlineUsers.entries()) {
         if (now - time > 10000) onlineUsers.delete(userId);
