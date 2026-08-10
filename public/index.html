@@ -1,259 +1,4 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ห้องแชท Rudjiroad</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    
-    body { 
-      background: linear-gradient(135deg, #0f0c20 0%, #15102a 100%); 
-      color: #f1f1f1; 
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    /* สไตล์หน้า Login */
-    .login-container { 
-      text-align: center; 
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      padding: 40px 30px; 
-      border-radius: 24px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-      width: 90%;
-      max-width: 400px;
-      display: block;
-    }
-    .login-container h2 { 
-      margin-bottom: 10px; 
-      color: #ffffff; 
-      font-size: 26px; 
-      font-weight: 600;
-    }
-    .login-container p {
-      color: #8b85b4;
-      font-size: 14px;
-      margin-bottom: 35px;
-    }
-    .btn-google { 
-      width: 100%;
-      padding: 16px; 
-      font-size: 16px; 
-      border-radius: 14px; 
-      border: 1px solid rgba(255,255,255,0.1); 
-      cursor: pointer; 
-      color: #fff; 
-      font-weight: 600;
-      background: #25233c;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-    .btn-google:hover {
-      background: #2f2c4d;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(66, 133, 244, 0.2);
-    }
-    .btn-google:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    .btn-google img {
-      width: 22px;
-      height: 22px;
-    }
-
-    /* สไตล์หน้าห้องแชท */
-    .chat-container { 
-      display: none; 
-      width: 100vw;
-      height: 100vh;
-      max-width: 600px; 
-      background: #110e24;
-      border-left: 1px solid rgba(255,255,255,0.05);
-      border-right: 1px solid rgba(255,255,255,0.05);
-      flex-direction: column;
-    }
-    .chat-header { 
-      padding: 20px; 
-      background: #171430;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .chat-header h3 { font-size: 18px; font-weight: 600; }
-    .online-badge {
-      background: rgba(40, 167, 69, 0.15);
-      color: #28a745;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .online-dot {
-      width: 8px;
-      height: 8px;
-      background: #28a745;
-      border-radius: 50%;
-      box-shadow: 0 0 8px #28a745;
-    }
-
-    .messages-box { 
-      flex: 1;
-      overflow-y: auto; 
-      padding: 20px; 
-      background: #0d0a1c;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-    }
-
-    /* กล่องข้อความ */
-    .message-wrapper {
-      display: flex;
-      gap: 10px;
-      max-width: 80%;
-    }
-    .message-wrapper.other {
-      align-self: flex-start;
-    }
-    .message-wrapper.me {
-      align-self: flex-end;
-      flex-direction: row-reverse;
-    }
-    .avatar {
-      width: 35px;
-      height: 35px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.1);
-      object-fit: cover;
-    }
-    .message-content {
-      display: flex;
-      flex-direction: column;
-    }
-    .message-username {
-      font-size: 12px;
-      color: #79739a;
-      margin-bottom: 4px;
-      margin-left: 4px;
-    }
-    .message-wrapper.me .message-username {
-      text-align: right;
-      margin-right: 4px;
-    }
-    .bubble { 
-      padding: 12px 16px; 
-      border-radius: 18px; 
-      font-size: 15px;
-      line-height: 1.4;
-      word-break: break-word;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .message-wrapper.other .bubble {
-      background: #201c38;
-      color: #f1f1f1;
-      border-top-left-radius: 4px;
-    }
-    .message-wrapper.me .bubble {
-      background: linear-gradient(135deg, #00b4db, #0083b0);
-      color: #fff;
-      border-top-right-radius: 4px;
-    }
-    .msg-time {
-      font-size: 10px;
-      color: rgba(255,255,255,0.4);
-      margin-top: 4px;
-      align-self: flex-end;
-    }
-    .message-wrapper.me .msg-time {
-      align-self: flex-start;
-    }
-
-    /* โซนพิมพ์ข้อความ */
-    .input-area { 
-      padding: 20px; 
-      background: #171430;
-      border-top: 1px solid rgba(255,255,255,0.05);
-      display: flex; 
-      gap: 12px; 
-    }
-    .input-area input { 
-      flex: 1; 
-      padding: 16px; 
-      border: 1px solid rgba(255,255,255,0.08); 
-      border-radius: 14px; 
-      background: #0d0a1c; 
-      color: #fff; 
-      font-size: 15px; 
-      outline: none;
-      transition: all 0.3s ease;
-    }
-    .input-area input:focus {
-      border-color: #00b4db;
-      box-shadow: 0 0 10px rgba(0, 180, 219, 0.2);
-    }
-    .input-area button { 
-      padding: 0 24px; 
-      border: none; 
-      border-radius: 14px; 
-      background: linear-gradient(135deg, #00b4db, #0083b0); 
-      color: #fff; 
-      font-size: 15px; 
-      font-weight: 600;
-      cursor: pointer; 
-      transition: all 0.3s ease;
-    }
-    .input-area button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0, 180, 219, 0.3);
-    }
-  </style>
-</head>
-<body>
-
-  <!-- หน้าล็อกอินใหม่ -->
-  <div id="loginPage" class="login-container">
-    <h2>MyChat Room</h2>
-   
-    <button class="btn-google" id="btnGoogle" onclick="loginGoogle()">
-      <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="Google">
-      เข้าสู่ระบบด้วย Google
-    </button>
-  </div>
-
-  <!-- หน้าต่างแชทใหม่ -->
-  <div id="chatPage" class="chat-container">
-    <div class="chat-header">
-      <h3>👋 สวัสดี, <span id="showName" style="color: #00b4db;"></span></h3>
-      <div class="online-badge">
-        <div class="online-dot"></div>
-        ออนไลน์ <span id="onlineCount">1</span> คน
-      </div>
-    </div>
-    <div id="chatMessages" class="messages-box"></div>
-    <div class="input-area">
-      <input type="text" id="msgInput" placeholder="พิมพ์ข้อความที่เป็นประโยชน์..." maxlength="200">
-      <button onclick="sendMsg()">ส่ง</button>
-    </div>
-  </div>
-
-  <script>
+<script>
     const firebaseConfig = {
       apiKey: "AIzaSyAM9dWJ2EQlJbESwB5FSxb4Q_OH2OG0G1k",
       authDomain: "chat-app-rudjiroad.firebaseapp.com",
@@ -266,23 +11,26 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     
-    // ตั้งค่า Persistence ให้รองรับสภาพแวดล้อมปิดแบบในแอป (IndexedDB)
     auth.setPersistence(firebase.auth.Auth.Persistence.INDEXEDDB).catch(err => console.log("Persistence Error ignored"));
 
     let idToken = "";
-    let myId = "id_" + Math.random().toString(36).slice(2);
-    let userData = {};
+    let userData = {
+      name: "rudjiroad 123",
+      avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+    };
     let lastTime = Date.now() - 30000;
 
-    // ตรวจจับสถานะ Auth
+    // ตรวจจับสถานะ Auth จาก Google
     auth.onAuthStateChanged(async user => {
       if (user) {
         userData = {
-          name: user.displayName || user.email.split('@')[0],
+          name: user.displayName || "rudjiroad 123",
           uid: user.uid,
           avatar: user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
         };
         idToken = await user.getIdToken();
+        
+        // แก้ไข: แสดงแค่ชื่อผู้ใช้โดยตัดคำว่า "👋 สวัสดี" ออกไปเลย
         document.getElementById("showName").textContent = userData.name;
         document.getElementById("loginPage").style.display = "none";
         document.getElementById("chatPage").style.display = "flex";
@@ -291,7 +39,6 @@
         document.getElementById("loginPage").style.display = "block";
         document.getElementById("chatPage").style.display = "none";
         
-        // ย้ายการเช็ค Redirect มาไว้ตรงนี้ เพื่อป้องกันการบล็อกหน้าจอตอนโหลดครั้งแรกในสภาพแวดล้อมที่ไม่มีสิทธิ์เข้าถึง storage
         auth.getRedirectResult().catch(err => {
           console.log("Redirect check status:", err.message);
         });
@@ -325,7 +72,8 @@
     }
 
     function joinChat() {
-      xhr("POST", "/join", { id: myId }, res => {
+      // ใช้ชื่อผู้ใช้จริงแทนการสุ่ม ID แปลกๆ
+      xhr("POST", "/join", { id: userData.name }, res => {
         if (res && res.ok) {
           startPolling();
         } else {
@@ -340,44 +88,20 @@
       if (!text) return;
       input.value = "";
 
-      // 1. ส่งข้อความของผู้ใช้เข้าห้องแชทผ่านเซิร์ฟเวอร์เดิม
-      xhr("POST", "/chat", { id: myId, text }, res => {
+      // ส่งข้อความพร้อมชื่อและรูปโปรไฟล์จริงเข้าเซิร์ฟเวอร์ (ตัดระบบ AI ออกเรียบร้อย)
+      xhr("POST", "/chat", { 
+        id: userData.name, 
+        text: text, 
+        profile: userData.avatar 
+      }, res => {
         if (!res || !res.ok) {
           alert("ส่งข้อความไม่สำเร็จ");
-          return;
         }
-
-        // 2. ตรวจสอบว่าผู้ใช้เรียกหา AI หรือพิมพ์คุยทั่วไปไหม (หรือจะให้ส่งหา Lumen ทุกข้อความก็ได้ครับ)
-        // ในที่นี้เราจะให้ส่งเข้า AI (ลูเมน) ทุกครั้งที่มีการพิมพ์ข้อความ เพื่อความสะดวกในการคุยเล่นครับ
-        fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${idToken}`
-          },
-          body: JSON.stringify({ message: text })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data && data.reply) {
-            // 3. จำลองข้อความตอบกลับจาก "ลูเมน" เข้าสู่ระบบแชท
-            // ส่งข้อความในนามของ Lumen ผ่านเซิร์ฟเวอร์แชทห้องเดียวกัน
-            xhr("POST", "/chat", { 
-              id: "ai_lumen_bot", 
-              text: data.reply,
-              // หมายเหตุ: หากระบบหลังบ้านรองรับการระบุชื่อผู้ส่งจำลอง สามารถปรับตรงนี้ได้เลย 
-              // หรือให้ Server หลังบ้านจัดการบอทตอบกลับอัตโนมัติ
-            }, () => {});
-          }
-        })
-        .catch(err => {
-          console.error("Error communicating with Lumen:", err);
-        });
       });
     }
 
     function poll() {
-      xhr("GET", `/poll?id=${myId}&since=${lastTime}`, null, data => {
+      xhr("GET", `/poll?id=${encodeURIComponent(userData.name)}&since=${lastTime}`, null, data => {
         if (!data) return;
         if(data.online) document.getElementById("onlineCount").textContent = data.online;
 
@@ -418,5 +142,3 @@
       if (e.key === "Enter") sendMsg();
     });
   </script>
-</body>
-</html>
