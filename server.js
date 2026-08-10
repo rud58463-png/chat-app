@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 import { createRequire } from 'module'; 
 import admin from 'firebase-admin';
 import { initializeApp, cert } from 'firebase-admin/app';
-import { GoogleGenAI } from '@google/genai';
 
 const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
@@ -33,62 +32,38 @@ initializeApp({
     credential: cert(serviceAccount)
 });
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 let onlineUsers = new Map();
 let messages = [];
 
-// 1. รองรับ /join
+// 1. รองรับการเข้าระบบ (Login)
 app.post('/join', async (req, res) => {
     try {
         const { id } = req.body;
+        if (!id) return res.status(400).json({ ok: false, reason: "ไม่พบข้อมูลผู้ใช้" });
+        
         onlineUsers.set(id, Date.now());
         return res.json({ ok: true, message: "เข้าระบบสำเร็จ" });
     } catch (error) {
+        console.error("Error joining chat:", error);
         return res.status(500).json({ ok: false, reason: "เซิร์ฟเวอร์ขัดข้อง" });
     }
 });
 
-// 2. รองรับ /chat (บันทึกข้อความผู้ใช้ และให้ลูเมนตอบกลับอัตโนมัติ)
+// 2. รองรับการส่งข้อความเข้าห้องแชท (แบบไม่มี AI แล้ว)
 app.post('/chat', async (req, res) => {
     try {
         const { id, text } = req.body;
         if (!text) return res.status(400).json({ ok: false });
 
-        // บันทึกข้อความผู้ใช้
-        const userMessage = {
+        const newMessage = {
             id: Math.random().toString(36).substring(2),
-            username: id === "ai_lumen_bot" ? "ลูเมน (Lumen)" : "rudjiroad 123",
+            username: id || "ผู้ใช้งาน",
             text: text,
-            time: Date.now(),
-            profile: id === "ai_lumen_bot" ? "https://cdn-icons-png.flaticon.com/512/4712/4712109.png" : undefined
+            time: Date.now()
         };
-        messages.push(userMessage);
 
-        // ถ้าไม่ใช่บอทร่างเอง ให้เรียก Gemini AI ตอบกลับ
-        if (id !== "ai_lumen_bot") {
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: text,
-                config: {
-                    systemInstruction: "คุณชื่อ 'ลูเมน (Lumen)' เป็นผู้ช่วย AI อัจฉริยะที่ใจดี เป็นกันเอง และมีความรู้รอบตัวสูง",
-                    temperature: 0.7,
-                }
-            });
-
-            const replyText = response.text || (response.candidates && response.candidates[0]?.content?.parts[0]?.text) || "ขออภัยค่ะ ฉันประมวลผลไม่ทัน";
-
-            const botMessage = {
-                id: Math.random().toString(36).substring(2),
-                username: "ลูเมน (Lumen)",
-                text: replyText,
-                time: Date.now() + 100,
-                profile: "https://cdn-icons-png.flaticon.com/512/4712/4712109.png"
-            };
-            messages.push(botMessage);
-        }
-
-        if (messages.length > 50) messages.shift();
+        messages.push(newMessage);
+        if (messages.length > 50) messages.shift(); // เก็บข้อความล่าสุดไว้ 50 ข้อความ
 
         return res.json({ ok: true });
     } catch (error) {
@@ -97,11 +72,12 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// 3. รองรับ /poll ดึงข้อความ
+// 3. รองรับการดึงข้อความและเช็คคนออนไลน์ (Poll)
 app.get('/poll', (req, res) => {
     const { id, since } = req.query;
     if (id) onlineUsers.set(id, Date.now());
 
+    // ล้างรายชื่อคนที่ไม่ได้ active เกิน 10 วินาทีออก
     const now = Date.now();
     for (let [userId, time] of onlineUsers.entries()) {
         if (now - time > 10000) onlineUsers.delete(userId);
