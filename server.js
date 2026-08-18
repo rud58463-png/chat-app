@@ -35,31 +35,32 @@ initializeApp({
 let onlineUsers = new Map();
 let messages = [];
 
-// 1. รองรับการเข้าระบบ (Login) และรับรูปโปรไฟล์
+// 1. รองรับการเข้าระบบห้องแชทสดโดยใช้ชื่อที่ผู้ใช้พิมพ์เข้ามา (ไม่ต้องผ่าน Google)
 app.post('/join', async (req, res) => {
     try {
-        const { id } = req.body;
-        if (!id) return res.status(400).json({ ok: false, reason: "ไม่พบข้อมูลผู้ใช้" });
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ ok: false, reason: "กรุณาระบุชื่อผู้ใช้งาน" });
         
-        onlineUsers.set(id, Date.now());
-        return res.json({ ok: true, message: "เข้าระบบสำเร็จ" });
+        // ใช้ชื่อเป็นตัวระบุตัวตนชั่วคราวในห้องแชท
+        onlineUsers.set(username, Date.now());
+        return res.json({ ok: true, message: "เข้าระบบสำเร็จ", username });
     } catch (error) {
         console.error("Error joining chat:", error);
         return res.status(500).json({ ok: false, reason: "เซิร์ฟเวอร์ขัดข้อง" });
     }
 });
 
-// 2. รองรับการส่งข้อความ พร้อมแนบรูปโปรไฟล์ (Profile Picture)
+// 2. รองรับการส่งข้อความเข้าห้องแชทสด
 app.post('/chat', async (req, res) => {
     try {
-        const { id, text, profile } = req.body;
-        if (!text) return res.status(400).json({ ok: false });
+        const { username, text, profile } = req.body;
+        if (!text) return res.status(400).json({ ok: false, reason: "ไม่พบข้อความ" });
 
         const newMessage = {
             id: Math.random().toString(36).substring(2),
-            username: id || "ผู้ใช้งาน",
+            username: username || "ผู้ใช้งานทั่วไป",
             text: text,
-            profile: profile || null, // แนบรูปโปรไฟล์มาแสดงในแชท
+            profile: profile || null, // รูปโปรไฟล์ (ถ้ามี หรือกำหนดเป็นรูปภาพตั้งต้นจากฝั่ง UI)
             time: Date.now()
         };
 
@@ -75,12 +76,12 @@ app.post('/chat', async (req, res) => {
 
 // 3. รองรับการดึงข้อความและเช็คคนออนไลน์ (Poll)
 app.get('/poll', (req, res) => {
-    const { id, since } = req.query;
-    if (id) onlineUsers.set(id, Date.now());
+    const { username, since } = req.query;
+    if (username) onlineUsers.set(username, Date.now());
 
     const now = Date.now();
-    for (let [userId, time] of onlineUsers.entries()) {
-        if (now - time > 10000) onlineUsers.delete(userId);
+    for (let [user, time] of onlineUsers.entries()) {
+        if (now - time > 10000) onlineUsers.delete(user);
     }
 
     const sinceTime = parseInt(since) || 0;
