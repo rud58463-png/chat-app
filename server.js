@@ -35,15 +35,14 @@ initializeApp({
 let onlineUsers = new Map();
 let messages = [];
 
-// 1. รองรับการเข้าระบบห้องแชทสดโดยใช้ชื่อที่ผู้ใช้พิมพ์เข้ามา (ไม่ต้องผ่าน Google)
+// 1. รองรับการเข้าระบบห้องแชทสด (รองรับทั้ง id และ username)
 app.post('/join', async (req, res) => {
     try {
-        const { username } = req.body;
-        if (!username) return res.status(400).json({ ok: false, reason: "กรุณาระบุชื่อผู้ใช้งาน" });
+        const name = req.body.username || req.body.id;
+        if (!name) return res.status(400).json({ ok: false, reason: "กรุณาระบุชื่อผู้ใช้งาน" });
         
-        // ใช้ชื่อเป็นตัวระบุตัวตนชั่วคราวในห้องแชท
-        onlineUsers.set(username, Date.now());
-        return res.json({ ok: true, message: "เข้าระบบสำเร็จ", username });
+        onlineUsers.set(name, Date.now());
+        return res.json({ ok: true, message: "เข้าระบบสำเร็จ", username: name });
     } catch (error) {
         console.error("Error joining chat:", error);
         return res.status(500).json({ ok: false, reason: "เซิร์ฟเวอร์ขัดข้อง" });
@@ -53,14 +52,15 @@ app.post('/join', async (req, res) => {
 // 2. รองรับการส่งข้อความเข้าห้องแชทสด
 app.post('/chat', async (req, res) => {
     try {
-        const { username, text, profile } = req.body;
+        const name = req.body.username || req.body.id;
+        const { text, profile } = req.body;
         if (!text) return res.status(400).json({ ok: false, reason: "ไม่พบข้อความ" });
 
         const newMessage = {
             id: Math.random().toString(36).substring(2),
-            username: username || "ผู้ใช้งานทั่วไป",
+            username: name || "ผู้ใช้งานทั่วไป",
             text: text,
-            profile: profile || null, // รูปโปรไฟล์ (ถ้ามี หรือกำหนดเป็นรูปภาพตั้งต้นจากฝั่ง UI)
+            profile: profile || null,
             time: Date.now()
         };
 
@@ -76,8 +76,10 @@ app.post('/chat', async (req, res) => {
 
 // 3. รองรับการดึงข้อความและเช็คคนออนไลน์ (Poll)
 app.get('/poll', (req, res) => {
-    const { username, since } = req.query;
-    if (username) onlineUsers.set(username, Date.now());
+    const name = req.query.username || req.query.id;
+    const { since } = req.query;
+    
+    if (name) onlineUsers.set(name, Date.now());
 
     const now = Date.now();
     for (let [user, time] of onlineUsers.entries()) {
