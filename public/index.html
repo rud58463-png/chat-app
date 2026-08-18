@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ห้องแชท Rudjiroad</title>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     
@@ -39,38 +37,43 @@
     .login-container p {
       color: #8b85b4;
       font-size: 14px;
-      margin-bottom: 35px;
+      margin-bottom: 25px;
     }
-    .btn-google { 
+    .login-container input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 15px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: #0d0a1c;
+      color: #fff;
+      outline: none;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+    .login-container input:focus {
+      border-color: #00b4db;
+      box-shadow: 0 0 10px rgba(0, 180, 219, 0.2);
+    }
+    .btn-join { 
       width: 100%;
       padding: 16px; 
       font-size: 16px; 
       border-radius: 14px; 
-      border: 1px solid rgba(255,255,255,0.1); 
+      border: none; 
       cursor: pointer; 
       color: #fff; 
       font-weight: 600;
-      background: #25233c;
+      background: linear-gradient(135deg, #00b4db, #0083b0);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
       transition: all 0.3s ease;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .btn-google:hover {
-      background: #2f2c4d;
+    .btn-join:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(66, 133, 244, 0.2);
-    }
-    .btn-google:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    .btn-google img {
-      width: 22px;
-      height: 22px;
+      box-shadow: 0 6px 20px rgba(0, 180, 219, 0.3);
     }
 
     .chat-container { 
@@ -223,17 +226,15 @@
 </head>
 <body>
 
-  <!-- หน้าล็อกอิน -->
+  <!-- หน้าจอสำหรับกรอกชื่อเข้าห้องแชท (แทนที่ระบบ Google เดิม) -->
   <div id="loginPage" class="login-container">
     <h2>MyChat Room</h2>
-    <p>เข้าสู่ระบบเพื่อเริ่มสนทนา</p>
-    <button class="btn-google" id="btnGoogle" onclick="loginGoogle()">
-      <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="Google">
-      เข้าสู่ระบบด้วย Google
-    </button>
+    <p>กรอกชื่อของคุณเพื่อเริ่มสนทนา</p>
+    <input type="text" id="usernameInput" placeholder="พิมพ์ชื่อเล่นของคุณ..." maxlength="30">
+    <button class="btn-join" onclick="handleJoin()">เข้าสู่ห้องแชท</button>
   </div>
 
-  <!-- หน้าต่างแชท (นำคำว่า 👋 สวัสดี ออกแล้ว แสดงเฉพาะชื่อ) -->
+  <!-- หน้าต่างห้องแชท -->
   <div id="chatPage" class="chat-container">
     <div class="chat-header">
       <h3><span id="showName" style="color: #00b4db;"></span></h3>
@@ -250,71 +251,38 @@
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyAM9dWJ2EQlJbESwB5FSxb4Q_OH2OG0G1k",
-      authDomain: "chat-app-rudjiroad.firebaseapp.com",
-      projectId: "chat-app-rudjiroad",
-      storageBucket: "chat-app-rudjiroad.firebasestorage.app",
-      messagingSenderId: "441617353213",
-      appId: "1:441617353213:web:dafe971e2e3a7b6d1a7194"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    
-    auth.setPersistence(firebase.auth.Auth.Persistence.INDEXEDDB).catch(err => console.log("Persistence Error ignored"));
-
-    let idToken = "";
     let userData = {
-      name: "rudjiroad 123",
+      name: "",
       avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
     };
     let lastTime = Date.now() - 30000;
+    let pollInterval = null;
 
-    auth.onAuthStateChanged(async user => {
-      if (user) {
-        userData = {
-          name: user.displayName || "rudjiroad 123",
-          uid: user.uid,
-          avatar: user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"
-        };
-        try {
-          idToken = await user.getIdToken();
-        } catch (e) {
-          idToken = "";
-        }
-        
-        document.getElementById("showName").textContent = userData.name;
-        document.getElementById("loginPage").style.display = "none";
-        document.getElementById("chatPage").style.display = "flex";
-        joinChat();
-      } else {
-        document.getElementById("loginPage").style.display = "block";
-        document.getElementById("chatPage").style.display = "none";
-        
-        auth.getRedirectResult().catch(err => {
-          console.log("Redirect check status:", err.message);
-        });
-      }
-    });
-
-    let loginInProgress = false;
-
-    function loginGoogle() {
-      if (loginInProgress) return;
-      loginInProgress = true;
-      const btn = document.getElementById("btnGoogle");
-      if (btn) btn.disabled = true;
+    // ฟังก์ชันเมื่อผู้ใช้กดปุ่มเข้าห้องแชทด้วยชื่อ
+    function handleJoin() {
+      const input = document.getElementById("usernameInput");
+      const name = input.value.trim();
       
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithRedirect(provider);
+      if (!name) {
+        alert("กรุณากรอกชื่อผู้ใช้งานก่อนครับ");
+        input.focus();
+        return;
+      }
+
+      userData.name = name;
+      document.getElementById("showName").textContent = userData.name;
+      
+      // สลับหน้าจอจากหน้ากรอกชื่อไปหน้าแชท
+      document.getElementById("loginPage").style.display = "none";
+      document.getElementById("chatPage").style.display = "flex";
+      
+      joinChat();
     }
 
     function xhr(method, url, data, cb) {
       const x = new XMLHttpRequest();
       x.open(method, url, true);
       x.timeout = 5000;
-      if (idToken) x.setRequestHeader("Authorization", `Bearer ${idToken}`);
       if (method === "POST") x.setRequestHeader("Content-Type", "application/json");
       x.onreadystatechange = function() {
         if (x.readyState === 4) {
@@ -390,9 +358,20 @@
 
     function startPolling() {
       poll();
-      setInterval(poll, 1500);
+      if (!pollInterval) {
+        pollInterval = setInterval(poll, 1500);
+      }
     }
 
+    // รองรับการกด Enter ในช่องกรอกชื่อ
+    const usernameInput = document.getElementById("usernameInput");
+    if (usernameInput) {
+      usernameInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") handleJoin();
+      });
+    }
+
+    // รองรับการกด Enter ในช่องพิมพ์ข้อความแชท
     const msgInput = document.getElementById("msgInput");
     if (msgInput) {
       msgInput.addEventListener("keydown", e => {
