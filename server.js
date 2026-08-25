@@ -283,6 +283,43 @@ app.get('/get-user', async (req, res) => {
   }
 });
 
+// ✅ อัปเดตข้อมูลติดต่อผู้ใช้
+app.post('/update-user-contact', async (req, res) => {
+  const { email, messengerLink, lineLink, phone, action } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, error: 'ขาดอีเมล' });
+  }
+
+  try {
+    const userRef = db.collection('users').doc(email);
+
+    if (action === 'clearContact') {
+      // กดยกเลิก → ล้างค่าทั้งหมด
+      await userRef.set({
+        messengerLink: '',
+        lineLink: '',
+        phone: '',
+        updatedAt: Date.now()
+      }, { merge: true });
+    } else {
+      // กดยืนยัน → บันทึกค่าใหม่
+      await userRef.set({
+        messengerLink: messengerLink || '',
+        lineLink: lineLink || '',
+        phone: phone || '',
+        updatedAt: Date.now()
+      }, { merge: true });
+    }
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('เซิร์ฟเวอร์บันทึกไม่สำเร็จ:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ✅ ย้าย app.listen มาอยู่ท้ายสุดที่เดียวครับ
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}`);
