@@ -89,24 +89,19 @@ app.get('/poll', (req, res) => {
 });
 
 // =========================================================
-// ระบบจัดการโพสต์
+// ระบบจัดการโพสต์สาธารณะ
 // =========================================================
 let cachedPosts = []; 
-
 let lastFetchTime = 0;
-const CACHE_DURATION = 240 * 1000; //  วินาที
-// =========================================================
-// ✅ ระบบจำกัดโพสต์วันละ 1 ครั้ง (ป้องกันโกงวันที่)
-// =========================================================
+const CACHE_DURATION = 300 * 1000; // 4 นาที
 
-// ตรวจสอบสิทธิ์ — เซิร์ฟเวอร์เป็นคนบอกวันที่จริง ไม่เชื่อมือถือ!
+// ตรวจสอบสิทธิ์โพสต์วันละ 1 ครั้ง
 app.get('/check-daily-limit', async (req, res) => {
-  const { email } = req.query; // ❌ ไม่รับวันจากมือถือเด็ดขาด!
+  const { email } = req.query;
   if (!email) return res.json({ hasPosted: false });
 
   try {
-    // ✅ เซิร์ฟเวอร์คำนวณวันที่จริงเอง
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = new Date().toISOString().slice(0, 10);
     const docId = `${email}_${today}`;
     const doc = await db.collection('user_daily_limits').doc(docId).get();
     res.json({ hasPosted: doc.exists, serverDate: today });
@@ -116,23 +111,20 @@ app.get('/check-daily-limit', async (req, res) => {
   }
 });
 
-// บันทึกโพสต์ + บันทึกสิทธิ์ — เซิร์ฟเวอร์เป็นคนกำหนดวันที่
+// บันทึกโพสต์สาธารณะ
 app.post('/save-post', async (req, res) => {
   const { text, images, userId, userName, userProfileImage } = req.body;
   if (!userId) return res.status(400).json({ error: 'ขาดข้อมูลผู้ใช้' });
 
   try {
-    // ✅ เซิร์ฟเวอร์กำหนดวันที่เอง ไม่เชื่อจากแอป
     const today = new Date().toISOString().slice(0, 10);
     const docId = `${userId}_${today}`;
 
-    // 🔐 เช็คก่อนว่าวันนี้โพสต์ไปแล้วหรือยัง
     const limitDoc = await db.collection('user_daily_limits').doc(docId).get();
     if (limitDoc.exists) {
       return res.status(429).json({ error: 'โพสต์ได้ 1 ครั้งต่อวันเท่านั้นครับ' });
     }
 
-    // ✅ บันทึกโพสต์ลง Firestore
     const postData = {
       text: text || '',
       images: images || [],
@@ -143,7 +135,6 @@ app.post('/save-post', async (req, res) => {
     };
     const postRef = await db.collection('public_posts').add(postData);
 
-    // ✅ บันทึกสิทธิ์ว่าโพสต์แล้ววันนี้
     await db.collection('user_daily_limits').doc(docId).set({
       userEmail: userId,
       date: today,
@@ -151,7 +142,6 @@ app.post('/save-post', async (req, res) => {
       lastPostAt: Date.now()
     });
 
-    // อัปเดตแคช
     cachedPosts.unshift({ id: postRef.id, ...postData });
     if (cachedPosts.length > 20) cachedPosts.pop();
 
@@ -162,7 +152,7 @@ app.post('/save-post', async (req, res) => {
   }
 });
 
-// ดึงรายการโพสต์ทั้งหมด
+// ดึงรายการโพสต์สาธารณะ
 app.get('/get-posts', async (req, res) => {
   try {
     const now = Date.now();
@@ -185,7 +175,114 @@ app.get('/get-posts', async (req, res) => {
   }
 });
 
-// อย่าลืมบรรทัดนี้ไว้ท้ายสุดไฟล์นะครับ!
+// =========================================================
+// ✅ ระบบสินค้า / ขาย / ซื้อ / งาน (เพิ่มใหม่)
+// =========================================================
+let cachedProducts = [];
+let lastProductFetchTime = 0;
+
+// ดึงรายการสินค้า+งาน (แคช 4 นาที)
+app.get('/api/products', async (req, res) => {
+  try {
+    const now = Date.now();
+    if (cachedProducts.length === 0 || now - lastProductFetchTime > CACHE_DURATION) {
+      const snapshot = await db.collection('products')
+        .orderBy('createdAt', 'desc')
+        .limit(100)
+        .get();
+      
+      cachedProducts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      lastProductFetchTime = now;
+    }
+    res.json(cachedProducts);
+  } catch (e) {
+    console.error('โหลดสินค้าล้มเหลว:', e);
+    res.json([]);
+  }
+});
+
+// บันทึกสินค้า/ขาย/ซื้อ/งาน + จำกัด 3 รายการ
+app.post('/save-product', async (req, res) => {
+  const { 
+    name, price, description, imageUrls, 
+    latitude, longitude, ownerEmail,
+    messengerLink, lineLink, userProfileImage,
+    type,
+    title, companyName, salary, phone,  // สำหรับงาน
+    images  // รองรับชื่อฟิลด์ 2 แบบ
+  } = req.body;
+
+  const userId = ownerEmail;
+  if (!userId) return res.status(400).json({ error: 'ขาดข้อมูลผู้ใช้' });
+
+  try {
+    // 🔐 นับจำนวนรายการที่มีอยู่ จำกัดสูงสุด 3
+    const userDocs = await db.collection('products')
+      .whereEqualTo('ownerEmail', userId)
+      .get();
+    
+    if (userDocs.size >= 3) {
+      return res.status(429).json({ error: 'คุณลงประกาศได้สูงสุด 3 รายการเท่านั้น! กรุณาลบรายการเก่าก่อน' });
+    }
+
+    // ✅ เตรียมข้อมูล (รองรับทั้งสินค้าและงาน)
+    const data = {
+      // สินค้า/ขาย/ซื้อ
+      name: name || '',
+      price: price || 0,
+      description: description || '',
+      imageUrls: imageUrls || images || [],
+      // งาน
+      title: title || '',
+      companyName: companyName || '',
+      salary: salary || 0,
+      phone: phone || '',
+      // ทั่วไป
+      latitude: latitude || 0,
+      longitude: longitude || 0,
+      ownerEmail: userId,
+      messengerLink: messengerLink || '',
+      lineLink: lineLink || '',
+      userProfileImage: userProfileImage || '',
+      type: type || 'sell',
+      createdAt: Date.now()
+    };
+
+    // ✅ บันทึก
+    const ref = await db.collection('products').add(data);
+
+    // ✅ อัปเดตแคช
+    cachedProducts.unshift({ id: ref.id, ...data });
+    if (cachedProducts.length > 100) cachedProducts.pop();
+
+    res.json({ success: true, id: ref.id });
+  } catch (e) {
+    console.error('บันทึกสินค้าล้มเหลว:', e);
+    res.status(500).json({ error: 'บันทึกไม่สำเร็จ' });
+  }
+});
+
+// ดึงข้อมูลผู้ใช้
+app.get('/get-user', async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.json({});
+
+  try {
+    const doc = await db.collection('users').doc(email).get();
+    if (doc.exists) {
+      res.json(doc.data());
+    } else {
+      res.json({});
+    }
+  } catch (e) {
+    console.error('โหลดข้อมูลผู้ใช้ล้มเหลว:', e);
+    res.json({});
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ เซิร์ฟเวอร์ทำงานที่พอร์ต ${PORT}`);
