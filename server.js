@@ -93,7 +93,7 @@ app.get('/poll', (req, res) => {
 // =========================================================
 let cachedPosts = []; 
 let lastFetchTime = 0;
-const CACHE_DURATION = 300 * 1000; // 4 นาที
+const CACHE_DURATION = 360 * 1000; // 6 นาที
 
 // ตรวจสอบสิทธิ์โพสต์วันละ 1 ครั้ง
 app.get('/check-daily-limit', async (req, res) => {
