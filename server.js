@@ -175,35 +175,6 @@ app.get('/get-posts', async (req, res) => {
   }
 });
 
-// =========================================================
-// ✅ ระบบสินค้า / ขาย / ซื้อ / งาน (เพิ่มใหม่)
-// =========================================================
-let cachedProducts = [];
-let lastProductFetchTime = 0;
-
-// ดึงรายการสินค้า+งาน (แคช 4 นาที)
-app.get('/api/products', async (req, res) => {
-  try {
-    const now = Date.now();
-    if (cachedProducts.length === 0 || now - lastProductFetchTime > CACHE_DURATION) {
-      const snapshot = await db.collection('products')
-        .orderBy('createdAt', 'desc')
-        .limit(100)
-        .get();
-      
-      cachedProducts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      lastProductFetchTime = now;
-    }
-    res.json(cachedProducts);
-  } catch (e) {
-    console.error('โหลดสินค้าล้มเหลว:', e);
-    res.json([]);
-  }
-});
-
 // บันทึกสินค้า/ขาย/ซื้อ/งาน + จำกัด 3 รายการ
 app.post('/save-product', async (req, res) => {
   const { 
