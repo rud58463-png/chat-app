@@ -94,7 +94,7 @@ app.get('/poll', (req, res) => {
 let cachedPosts = []; 
 let lastFetchTime = 0;
 const CACHE_DURATION = 360 * 1000; // 6 นาที
-
+let cachedProducts = []; 
 // ตรวจสอบสิทธิ์โพสต์วันละ 1 ครั้ง
 app.get('/check-daily-limit', async (req, res) => {
   const { email } = req.query;
@@ -192,8 +192,8 @@ app.post('/save-product', async (req, res) => {
   try {
     // 🔐 นับจำนวนรายการที่มีอยู่ จำกัดสูงสุด 3
     const userDocs = await db.collection('products')
-      .whereEqualTo('ownerEmail', userId)
-      .get();
+  .where('ownerEmail', '==', userId)    // ✅ ถูกต้อง
+  .get();
     
     if (userDocs.size >= 3) {
       return res.status(429).json({ error: 'คุณลงประกาศได้สูงสุด 3 รายการเท่านั้น! กรุณาลบรายการเก่าก่อน' });
