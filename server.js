@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
+const express = require('express');
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -288,6 +289,11 @@ app.post('/update-user-contact', async (req, res) => {
     console.error('เซิร์ฟเวอร์บันทึกไม่สำเร็จ:', e);
     res.status(500).json({ success: false, error: e.message });
   }
+});
+
+// Endpoint สำหรับให้ UptimeRobot ปิง
+app.get('/ping', (req, res) => {
+  res.status(200).send('OK');
 });
 
 // ✅ ย้าย app.listen มาอยู่ท้ายสุดที่เดียวครับ
